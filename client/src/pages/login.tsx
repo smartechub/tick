@@ -49,7 +49,6 @@ export default function Login({ onLogin }: LoginProps) {
             <img src={lightLogo} alt="Light Finance" className="h-16 w-auto" />
           </div>
           <h2 className="mt-6 text-3xl font-bold text-gray-900">IT Support Portal</h2>
-          <p className="mt-2 text-sm text-gray-600">Sign in to your account</p>
         </div>
 
         <Card className="shadow-lg">

@@ -8,7 +8,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
 // Add comprehensive activity logging middleware for all API calls
-app.use('/api', ActivityLogger.apiLogger);
+// app.use('/api', ActivityLogger.apiLogger); // Disabled - not required per user request
 
 app.use((req, res, next) => {
   const start = Date.now();

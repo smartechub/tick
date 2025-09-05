@@ -107,40 +107,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const adminUser = await storage.getUserByUsername('admin');
     if (!adminUser) {
       await storage.createUser({
+        employeeId: 'EMP001',
         username: 'admin',
         password: 'Admin@123',
         name: 'Administrator',
         email: 'admin@company.com',
         role: 'admin',
-        department: 'IT'
+        department: 'IT',
+        designation: 'System Administrator',
+        mobile: '+1234567890'
       });
 
       // Create some sample users for testing
       await storage.createUser({
+        employeeId: 'EMP002',
         username: 'john.smith',
         password: 'password123',
         name: 'John Smith',
         email: 'john.smith@company.com',
-        role: 'agent',
-        department: 'IT'
+        role: 'user',
+        department: 'IT',
+        designation: 'Support Agent',
+        mobile: '+1234567891'
       });
 
       await storage.createUser({
+        employeeId: 'EMP003',
         username: 'sarah.johnson',
         password: 'password123',
         name: 'Sarah Johnson',
         email: 'sarah.johnson@company.com',
-        role: 'agent',
-        department: 'IT'
+        role: 'user',
+        department: 'IT',
+        designation: 'Support Agent',
+        mobile: '+1234567892'
       });
 
       await storage.createUser({
+        employeeId: 'EMP004',
         username: 'michael.chen',
         password: 'password123',
         name: 'Michael Chen',
         email: 'michael.chen@company.com',
-        role: 'employee',
-        department: 'HR'
+        role: 'user',
+        department: 'HR',
+        designation: 'HR Specialist',
+        mobile: '+1234567893'
       });
     }
   } catch (error) {
@@ -152,11 +164,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ 
       user: {
         id: req.user.id,
+        employeeId: req.user.employeeId,
         username: req.user.username,
         name: req.user.name,
         email: req.user.email,
-        role: req.user.role,
-        department: req.user.department
+        mobile: req.user.mobile,
+        department: req.user.department,
+        designation: req.user.designation,
+        role: req.user.role
       }
     });
   });
@@ -174,11 +189,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({
       user: {
         id: req.user.id,
+        employeeId: req.user.employeeId,
         username: req.user.username,
         name: req.user.name,
         email: req.user.email,
-        role: req.user.role,
-        department: req.user.department
+        mobile: req.user.mobile,
+        department: req.user.department,
+        designation: req.user.designation,
+        role: req.user.role
       }
     });
   });
@@ -189,11 +207,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const users = await storage.getAllUsers();
       const safeUsers = users.map(user => ({
         id: user.id,
+        employeeId: user.employeeId,
         username: user.username,
         name: user.name,
         email: user.email,
-        role: user.role,
+        mobile: user.mobile,
         department: user.department,
+        designation: user.designation,
+        role: user.role,
         createdAt: user.createdAt
       }));
       res.json(safeUsers);
@@ -208,11 +229,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = await storage.createUser(userData);
       const safeUser = {
         id: user.id,
+        employeeId: user.employeeId,
         username: user.username,
         name: user.name,
         email: user.email,
-        role: user.role,
+        mobile: user.mobile,
         department: user.department,
+        designation: user.designation,
+        role: user.role,
         createdAt: user.createdAt
       };
       res.status(201).json(safeUser);
@@ -224,16 +248,146 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Bulk user creation
+  app.post('/api/users/bulk', requireAuth, requireRole(['admin']), async (req, res) => {
+    try {
+      const { users: usersData } = req.body;
+      
+      if (!Array.isArray(usersData) || usersData.length === 0) {
+        return res.status(400).json({ message: 'Users array is required and cannot be empty' });
+      }
+
+      const results = [];
+      const errors = [];
+      
+      for (let i = 0; i < usersData.length; i++) {
+        try {
+          const userData = insertUserSchema.parse(usersData[i]);
+          const user = await storage.createUser(userData);
+          results.push({
+            success: true,
+            user: {
+              id: user.id,
+              employeeId: user.employeeId,
+              username: user.username,
+              name: user.name,
+              email: user.email,
+              mobile: user.mobile,
+              department: user.department,
+              designation: user.designation,
+              role: user.role
+            }
+          });
+        } catch (error) {
+          errors.push({
+            index: i,
+            data: usersData[i],
+            error: error instanceof z.ZodError ? error.errors : 'Failed to create user'
+          });
+        }
+      }
+
+      res.status(201).json({
+        message: `Created ${results.length} users, ${errors.length} errors`,
+        results,
+        errors
+      });
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to process bulk user creation' });
+    }
+  });
+
+  // Get single user
+  app.get('/api/users/:id', requireAuth, requireRole(['admin']), async (req, res) => {
+    try {
+      const user = await storage.getUser(req.params.id);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      
+      const safeUser = {
+        id: user.id,
+        employeeId: user.employeeId,
+        username: user.username,
+        name: user.name,
+        email: user.email,
+        mobile: user.mobile,
+        department: user.department,
+        designation: user.designation,
+        role: user.role,
+        createdAt: user.createdAt
+      };
+      res.json(safeUser);
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to fetch user' });
+    }
+  });
+
+  // Update user
+  app.patch('/api/users/:id', requireAuth, requireRole(['admin']), async (req, res) => {
+    try {
+      const updateData = insertUserSchema.partial().parse(req.body);
+      const user = await storage.updateUser(req.params.id, updateData);
+      
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      const safeUser = {
+        id: user.id,
+        employeeId: user.employeeId,
+        username: user.username,
+        name: user.name,
+        email: user.email,
+        mobile: user.mobile,
+        department: user.department,
+        designation: user.designation,
+        role: user.role,
+        createdAt: user.createdAt
+      };
+      res.json(safeUser);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: 'Invalid user data', errors: error.errors });
+      }
+      res.status(500).json({ message: 'Failed to update user' });
+    }
+  });
+
+  // Delete user
+  app.delete('/api/users/:id', requireAuth, requireRole(['admin']), async (req: any, res) => {
+    try {
+      const userId = req.params.id;
+      
+      // Prevent deleting own account
+      if (userId === req.user.id) {
+        return res.status(400).json({ message: 'Cannot delete your own account' });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      // For now, we'll just return success without actually deleting
+      // since the current storage interface doesn't have a delete method
+      // This would need to be implemented in the storage layer
+      res.status(501).json({ message: 'User deletion not implemented yet' });
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to delete user' });
+    }
+  });
+
   // Ticket routes
   app.get('/api/tickets', requireAuth, async (req: any, res) => {
     try {
       const filters: any = {};
       
       // Role-based filtering
-      if (req.user.role === 'employee') {
+      if (req.user.role === 'user') {
         filters.createdById = req.user.id;
-      } else if (req.user.role === 'agent') {
-        filters.assignedToId = req.user.id;
+      } else if (req.user.role === 'viewer') {
+        // Viewers can see all tickets but with read-only access
       }
       // Admin can see all tickets (no additional filtering)
 

@@ -6,6 +6,7 @@ import {
   Plus, 
   BarChart3, 
   Settings,
+  Users,
   LogOut
 } from "lucide-react";
 import type { AuthUser } from "@/lib/auth";
@@ -45,12 +46,14 @@ export function Sidebar({ user, onLogout }: SidebarProps) {
     { name: 'All Tickets', href: '/tickets', icon: Ticket },
     { name: 'Create Ticket', href: '/create-ticket', icon: Plus },
     { name: 'Reports', href: '/reports', icon: BarChart3 },
+    { name: 'User Management', href: '/user-management', icon: Users },
     { name: 'Settings', href: '/settings', icon: Settings },
   ];
 
   // Filter navigation based on user role
   const filteredNavigation = navigation.filter(item => {
-    if (item.href === '/reports' && user.role === 'employee') return false;
+    if (item.href === '/reports' && user.role === 'user') return false;
+    if (item.href === '/user-management' && user.role !== 'admin') return false;
     if (item.href === '/settings' && user.role !== 'admin') return false;
     return true;
   });

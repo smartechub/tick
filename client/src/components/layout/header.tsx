@@ -27,6 +27,7 @@ export function Header({ user }: HeaderProps) {
       '/tickets': 'All Tickets',
       '/create-ticket': 'Create Ticket',
       '/reports': 'Reports',
+      '/user-management': 'User Management',
       '/settings': 'Settings',
     };
     

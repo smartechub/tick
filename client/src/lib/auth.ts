@@ -2,11 +2,14 @@ import { apiRequest } from "./queryClient";
 
 export interface AuthUser {
   id: string;
+  employeeId: string;
   username: string;
   name: string;
   email: string;
-  role: 'admin' | 'agent' | 'employee' | 'manager';
+  mobile: string;
   department: string;
+  designation: string;
+  role: 'admin' | 'viewer' | 'user';
 }
 
 export async function login(username: string, password: string): Promise<AuthUser> {

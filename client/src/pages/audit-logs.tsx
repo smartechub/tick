@@ -6,8 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { CalendarIcon, Download, Filter, RefreshCw } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { CalendarIcon, Download, Filter, RefreshCw, Eye } from "lucide-react";
+import { formatDistanceToNow, format } from "date-fns";
 import { usePageViewTracking, useActivityTracker } from "@/hooks/use-activity-tracker";
 
 interface ActivityLog {
@@ -49,6 +50,8 @@ export default function AuditLogs() {
   });
 
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedLog, setSelectedLog] = useState<ActivityLog | null>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['/api/activity-logs', filters],
@@ -79,6 +82,12 @@ export default function AuditLogs() {
     trackClick('download-audit-logs', { format: 'csv' });
     // TODO: Implement CSV download
     alert('Download functionality coming soon!');
+  };
+
+  const handleViewDetails = (log: ActivityLog) => {
+    trackClick('view-audit-log-details', { logId: log.id });
+    setSelectedLog(log);
+    setIsDetailModalOpen(true);
   };
 
   const getActionBadgeColor = (action: string) => {
@@ -245,6 +254,7 @@ export default function AuditLogs() {
                   <TableHead>Status</TableHead>
                   <TableHead>Details</TableHead>
                   <TableHead>IP Address</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -306,6 +316,17 @@ export default function AuditLogs() {
                     <TableCell className="text-sm text-muted-foreground">
                       {log.ipAddress || '-'}
                     </TableCell>
+                    <TableCell>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleViewDetails(log)}
+                        data-testid={`view-details-${log.id}`}
+                      >
+                        <Eye className="h-4 w-4 mr-1" />
+                        View
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -340,6 +361,166 @@ export default function AuditLogs() {
           )}
         </CardContent>
       </Card>
+
+      {/* Activity Log Detail Modal */}
+      <Dialog open={isDetailModalOpen} onOpenChange={setIsDetailModalOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Activity Log Details</DialogTitle>
+            <DialogDescription>
+              Complete information for this audit log entry
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedLog && (
+            <div className="space-y-4">
+              {/* Basic Information */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Log ID</label>
+                  <p className="text-sm font-mono bg-muted p-2 rounded">{selectedLog.id}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Timestamp</label>
+                  <p className="text-sm">
+                    {format(new Date(selectedLog.createdAt), 'PPpp')} <br />
+                    <span className="text-muted-foreground">
+                      ({formatDistanceToNow(new Date(selectedLog.createdAt), { addSuffix: true })})
+                    </span>
+                  </p>
+                </div>
+              </div>
+
+              {/* User Information */}
+              <div className="border-t pt-4">
+                <h4 className="font-medium mb-2">User Information</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">User</label>
+                    <p className="text-sm">
+                      {selectedLog.user ? (
+                        <>
+                          <span className="font-medium">{selectedLog.user.name}</span><br />
+                          <span className="text-muted-foreground">#{selectedLog.user.employeeId}</span><br />
+                          <span className="text-muted-foreground">{selectedLog.user.email}</span>
+                        </>
+                      ) : (
+                        <span className="text-muted-foreground">System / Anonymous</span>
+                      )}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Session ID</label>
+                    <p className="text-sm font-mono bg-muted p-2 rounded break-all">
+                      {selectedLog.sessionId || '-'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Information */}
+              <div className="border-t pt-4">
+                <h4 className="font-medium mb-2">Action Details</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Action</label>
+                    <p className="text-sm">
+                      <Badge className={getActionBadgeColor(selectedLog.action)}>
+                        {selectedLog.action.replace('_', ' ')}
+                      </Badge>
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Status</label>
+                    <p className="text-sm">
+                      <Badge variant={selectedLog.success ? 'default' : 'destructive'}>
+                        {selectedLog.success ? 'Success' : 'Failed'}
+                      </Badge>
+                      {selectedLog.duration && (
+                        <span className="ml-2 text-muted-foreground">({selectedLog.duration}ms)</span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 mt-4">
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Resource</label>
+                    <p className="text-sm">{selectedLog.resource || '-'}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Resource ID</label>
+                    <p className="text-sm font-mono bg-muted p-2 rounded break-all">
+                      {selectedLog.resourceId || '-'}
+                    </p>
+                  </div>
+                </div>
+
+                {selectedLog.method && (
+                  <div className="grid grid-cols-2 gap-4 mt-4">
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">HTTP Method</label>
+                      <p className="text-sm">
+                        <Badge variant={selectedLog.method === 'GET' ? 'secondary' : 'outline'}>
+                          {selectedLog.method}
+                        </Badge>
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Endpoint</label>
+                      <p className="text-sm font-mono bg-muted p-2 rounded break-all">
+                        {selectedLog.endpoint || '-'}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Technical Information */}
+              <div className="border-t pt-4">
+                <h4 className="font-medium mb-2">Technical Details</h4>
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">IP Address</label>
+                    <p className="text-sm font-mono bg-muted p-2 rounded">{selectedLog.ipAddress || '-'}</p>
+                  </div>
+                  
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">User Agent</label>
+                    <p className="text-xs bg-muted p-2 rounded break-all">
+                      {selectedLog.userAgent || '-'}
+                    </p>
+                  </div>
+
+                  {selectedLog.errorMessage && (
+                    <div>
+                      <label className="text-sm font-medium text-red-600">Error Message</label>
+                      <p className="text-sm bg-red-50 dark:bg-red-950 p-2 rounded text-red-800 dark:text-red-200">
+                        {selectedLog.errorMessage}
+                      </p>
+                    </div>
+                  )}
+
+                  {selectedLog.details && (
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Additional Details</label>
+                      <pre className="text-xs bg-muted p-2 rounded overflow-x-auto whitespace-pre-wrap">
+                        {(() => {
+                          try {
+                            return JSON.stringify(JSON.parse(selectedLog.details), null, 2);
+                          } catch {
+                            return selectedLog.details;
+                          }
+                        })()}
+                      </pre>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

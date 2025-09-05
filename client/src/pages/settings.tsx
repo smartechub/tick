@@ -426,6 +426,16 @@ IT Support Team`,
                 </div>
 
                 <div className="space-y-4 pt-4 border-t">
+                  <div className="flex gap-4">
+                    <Button
+                      onClick={handleSaveSettings}
+                      disabled={saveSettingsMutation.isPending}
+                      className="flex items-center gap-2"
+                    >
+                      {saveSettingsMutation.isPending ? "Saving..." : "Save SMTP Configuration"}
+                    </Button>
+                  </div>
+                  
                   <div className="space-y-2">
                     <Label htmlFor="test-email">Test Email Address</Label>
                     <Input
@@ -499,7 +509,7 @@ IT Support Team`,
 
         <div className="flex justify-end">
           <Button onClick={handleSaveSettings} disabled={saveSettingsMutation.isPending}>
-            {saveSettingsMutation.isPending ? "Saving..." : "Save Settings"}
+            {saveSettingsMutation.isPending ? "Saving..." : "Save All Settings"}
           </Button>
         </div>
       </div>

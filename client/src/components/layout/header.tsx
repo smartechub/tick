@@ -75,14 +75,6 @@ export function Header({ user }: HeaderProps) {
             <span className="absolute top-0 right-0 h-2 w-2 bg-destructive rounded-full"></span>
           </Button>
 
-          {/* User Menu */}
-          <div className="relative flex items-center space-x-2">
-            <div className="h-8 w-8 bg-primary rounded-full flex items-center justify-center">
-              <span className="text-xs font-medium text-primary-foreground">
-                {getInitials(user.name)}
-              </span>
-            </div>
-          </div>
         </div>
       </div>
     </header>

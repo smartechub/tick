@@ -7,12 +7,14 @@ import {
   BarChart3, 
   Settings,
   Users,
+  Shield,
   LogOut
 } from "lucide-react";
 import type { AuthUser } from "@/lib/auth";
 import { getInitials } from "@/lib/utils";
 import { logout } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
+import { useActivityTracker } from "@/hooks/use-activity-tracker";
 import { Button } from "@/components/ui/button";
 import lightLogo from "@assets/Light_Logo_1752837156719_1757055237167.png";
 
@@ -24,9 +26,11 @@ interface SidebarProps {
 export function Sidebar({ user, onLogout }: SidebarProps) {
   const [location] = useLocation();
   const { toast } = useToast();
+  const { trackClick, trackNavigation } = useActivityTracker();
 
   const handleLogout = async () => {
     try {
+      trackClick('logout-button');
       await logout();
       onLogout();
       toast({
@@ -41,12 +45,18 @@ export function Sidebar({ user, onLogout }: SidebarProps) {
     }
   };
 
+  const handleNavigation = (href: string, name: string) => {
+    trackNavigation(location, href);
+    trackClick(`nav-${name.toLowerCase().replace(/\s+/g, '-')}`);
+  };
+
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'All Tickets', href: '/tickets', icon: Ticket },
     { name: 'Create Ticket', href: '/create-ticket', icon: Plus },
     { name: 'Reports', href: '/reports', icon: BarChart3 },
     { name: 'User Management', href: '/user-management', icon: Users },
+    { name: 'Audit Logs', href: '/audit-logs', icon: Shield },
     { name: 'Settings', href: '/settings', icon: Settings },
   ];
 
@@ -54,6 +64,7 @@ export function Sidebar({ user, onLogout }: SidebarProps) {
   const filteredNavigation = navigation.filter(item => {
     if (item.href === '/reports' && user.role === 'user') return false;
     if (item.href === '/user-management' && user.role !== 'admin') return false;
+    if (item.href === '/audit-logs' && user.role !== 'admin') return false;
     if (item.href === '/settings' && user.role !== 'admin') return false;
     return true;
   });
@@ -75,6 +86,7 @@ export function Sidebar({ user, onLogout }: SidebarProps) {
                 <Link
                   key={item.name}
                   href={item.href}
+                  onClick={() => handleNavigation(item.href, item.name)}
                   className={cn(
                     'group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors',
                     isActive

@@ -12,6 +12,7 @@ import { randomUUID } from "crypto";
 import { insertTicketSchema, insertCommentSchema, insertUserSchema, insertSettingSchema } from "@shared/schema";
 import { z } from "zod";
 import { emailService } from "./email";
+import { ActivityLogger } from "./activity-logger";
 
 // Setup session middleware
 const sessionMiddleware = session({
@@ -157,7 +158,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }
 
   // Authentication routes
-  app.post('/api/auth/login', passport.authenticate('local'), (req: any, res) => {
+  app.post('/api/auth/login', passport.authenticate('local'), async (req: any, res) => {
+    // Log successful login activity
+    await ActivityLogger.logLogin(
+      req.user.id,
+      req.sessionID,
+      req.get('User-Agent'),
+      req.ip || req.connection.remoteAddress || 'unknown'
+    );
+
     res.json({ 
       user: {
         id: req.user.id,
@@ -172,11 +181,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
-  app.post('/api/auth/logout', (req: any, res) => {
-    req.logout((err: any) => {
+  app.post('/api/auth/logout', async (req: any, res) => {
+    const userId = req.user?.id;
+    const sessionId = req.sessionID;
+    const userAgent = req.get('User-Agent');
+    const ipAddress = req.ip || req.connection.remoteAddress || 'unknown';
+
+    req.logout(async (err: any) => {
       if (err) {
         return res.status(500).json({ message: 'Logout failed' });
       }
+      
+      // Log successful logout activity
+      if (userId) {
+        await ActivityLogger.logLogout(userId, sessionId, userAgent, ipAddress);
+      }
+      
       res.json({ message: 'Logged out successfully' });
     });
   });
@@ -240,6 +260,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Invalid user data', errors: error.errors });
       }
       res.status(500).json({ message: 'Failed to create user' });
+    }
+  });
+
+  // Activity logs endpoints
+  app.post('/api/activity-logs', requireAuth, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const sessionId = req.sessionID;
+      const userAgent = req.get('User-Agent');
+      const ipAddress = req.ip || req.connection.remoteAddress || 'unknown';
+      
+      // Create activity log from frontend tracking
+      await storage.createActivityLog({
+        userId,
+        sessionId,
+        action: req.body.action,
+        resource: req.body.resource,
+        resourceId: req.body.resourceId,
+        userAgent,
+        ipAddress,
+        details: req.body.details,
+        success: true
+      });
+
+      res.json({ message: 'Activity logged successfully' });
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to log activity' });
+    }
+  });
+
+  app.get('/api/activity-logs', requireAuth, requireRole(['admin']), async (req: any, res) => {
+    try {
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 50;
+      const userId = req.query.userId as string;
+      const action = req.query.action as string;
+      const resource = req.query.resource as string;
+      const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
+      const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
+
+      const result = await storage.getActivityLogs({
+        userId,
+        action,
+        resource,
+        startDate,
+        endDate,
+        page,
+        limit
+      });
+
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to retrieve activity logs' });
     }
   });
 

@@ -15,6 +15,7 @@ import TicketDetail from "./pages/ticket-detail";
 import Reports from "./pages/reports";
 import Settings from "./pages/settings";
 import UserManagement from "./pages/user-management";
+import AuditLogs from "./pages/audit-logs";
 import NotFound from "./pages/not-found";
 
 function AuthenticatedApp({ user, onLogout }: { user: AuthUser; onLogout: () => void }) {
@@ -31,6 +32,7 @@ function AuthenticatedApp({ user, onLogout }: { user: AuthUser; onLogout: () => 
             <Route path="/create-ticket" component={CreateTicket} />
             <Route path="/reports" component={Reports} />
             <Route path="/user-management" component={UserManagement} />
+            <Route path="/audit-logs" component={AuditLogs} />
             <Route path="/settings" component={Settings} />
             <Route path="/">
               <Dashboard />

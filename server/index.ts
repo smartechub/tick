@@ -1,10 +1,14 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { ActivityLogger } from "./activity-logger";
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+// Add comprehensive activity logging middleware for all API calls
+app.use('/api', ActivityLogger.apiLogger);
 
 app.use((req, res, next) => {
   const start = Date.now();

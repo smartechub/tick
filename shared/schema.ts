@@ -71,6 +71,25 @@ export const auditLogs = pgTable("audit_logs", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Comprehensive activity logs for all user activities
+export const activityLogs = pgTable("activity_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id),
+  sessionId: text("session_id"),
+  action: text("action").notNull(), // e.g., 'login', 'logout', 'view_page', 'click_button', 'api_call'
+  resource: text("resource"), // e.g., 'tickets', 'users', 'settings'
+  resourceId: text("resource_id"), // ID of the resource being acted upon
+  method: text("method"), // HTTP method for API calls: GET, POST, PUT, DELETE
+  endpoint: text("endpoint"), // API endpoint path
+  userAgent: text("user_agent"), // Browser/client information
+  ipAddress: text("ip_address"), // Client IP address
+  details: text("details"), // JSON string with additional details
+  success: boolean("success").default(true), // Whether the action was successful
+  errorMessage: text("error_message"), // Error details if action failed
+  duration: integer("duration"), // Duration in milliseconds for API calls
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const settings = pgTable("settings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   key: text("key").notNull().unique(),
@@ -87,6 +106,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   comments: many(comments),
   attachments: many(attachments),
   auditLogs: many(auditLogs),
+  activityLogs: many(activityLogs),
 }));
 
 export const ticketsRelations = relations(tickets, ({ one, many }) => ({
@@ -138,6 +158,13 @@ export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
   }),
 }));
 
+export const activityLogsRelations = relations(activityLogs, ({ one }) => ({
+  user: one(users, {
+    fields: [activityLogs.userId],
+    references: [users.id],
+  }),
+}));
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -172,6 +199,11 @@ export const insertSettingSchema = createInsertSchema(settings).omit({
   updatedAt: true,
 });
 
+export const insertActivityLogSchema = createInsertSchema(activityLogs).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -183,5 +215,7 @@ export type Attachment = typeof attachments.$inferSelect;
 export type InsertAttachment = z.infer<typeof insertAttachmentSchema>;
 export type AuditLog = typeof auditLogs.$inferSelect;
 export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
+export type ActivityLog = typeof activityLogs.$inferSelect;
+export type InsertActivityLog = z.infer<typeof insertActivityLogSchema>;
 export type Setting = typeof settings.$inferSelect;
 export type InsertSetting = z.infer<typeof insertSettingSchema>;

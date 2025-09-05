@@ -4,6 +4,7 @@ import {
   comments, 
   attachments, 
   auditLogs,
+  activityLogs,
   settings,
   type User, 
   type InsertUser,
@@ -15,11 +16,13 @@ import {
   type InsertAttachment,
   type AuditLog,
   type InsertAuditLog,
+  type ActivityLog,
+  type InsertActivityLog,
   type Setting,
   type InsertSetting
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, desc, asc, like, count } from "drizzle-orm";
+import { eq, and, or, desc, asc, like, count, gte, lte } from "drizzle-orm";
 import bcrypt from "bcrypt";
 
 export interface IStorage {
@@ -69,6 +72,18 @@ export interface IStorage {
   // Audit log methods
   createAuditLog(log: InsertAuditLog): Promise<AuditLog>;
   getTicketAuditLogs(ticketId: string): Promise<AuditLog[]>;
+
+  // Activity log methods
+  createActivityLog(log: InsertActivityLog): Promise<ActivityLog>;
+  getActivityLogs(filters?: {
+    userId?: string;
+    action?: string;
+    resource?: string;
+    startDate?: Date;
+    endDate?: Date;
+    page?: number;
+    limit?: number;
+  }): Promise<{ logs: ActivityLog[]; total: number; }>;
 
   // Settings methods
   getSetting(key: string): Promise<Setting | undefined>;
@@ -330,6 +345,69 @@ export class DatabaseStorage implements IStorage {
       .from(auditLogs)
       .where(eq(auditLogs.ticketId, ticketId))
       .orderBy(desc(auditLogs.createdAt));
+  }
+
+  // Activity log methods implementation
+  async createActivityLog(insertLog: InsertActivityLog): Promise<ActivityLog> {
+    const [log] = await db
+      .insert(activityLogs)
+      .values(insertLog)
+      .returning();
+    return log;
+  }
+
+  async getActivityLogs(filters?: {
+    userId?: string;
+    action?: string;
+    resource?: string;
+    startDate?: Date;
+    endDate?: Date;
+    page?: number;
+    limit?: number;
+  }): Promise<{ logs: ActivityLog[]; total: number; }> {
+    const page = filters?.page || 1;
+    const limit = filters?.limit || 50;
+    const offset = (page - 1) * limit;
+
+    let whereConditions = [];
+
+    if (filters?.userId) {
+      whereConditions.push(eq(activityLogs.userId, filters.userId));
+    }
+    if (filters?.action) {
+      whereConditions.push(eq(activityLogs.action, filters.action));
+    }
+    if (filters?.resource) {
+      whereConditions.push(eq(activityLogs.resource, filters.resource));
+    }
+    if (filters?.startDate) {
+      whereConditions.push(gte(activityLogs.createdAt, filters.startDate));
+    }
+    if (filters?.endDate) {
+      whereConditions.push(lte(activityLogs.createdAt, filters.endDate));
+    }
+
+    const whereClause = whereConditions.length > 0 ? and(...whereConditions) : undefined;
+
+    // Get the logs with pagination
+    const logs = await db
+      .select()
+      .from(activityLogs)
+      .where(whereClause)
+      .orderBy(desc(activityLogs.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    // Get total count
+    const totalResult = await db
+      .select({ count: count() })
+      .from(activityLogs)
+      .where(whereClause);
+
+    return {
+      logs,
+      total: totalResult[0]?.count || 0
+    };
   }
 
   async getSetting(key: string): Promise<Setting | undefined> {

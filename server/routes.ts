@@ -396,10 +396,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: 'User not found' });
       }
 
-      // For now, we'll just return success without actually deleting
-      // since the current storage interface doesn't have a delete method
-      // This would need to be implemented in the storage layer
-      res.status(501).json({ message: 'User deletion not implemented yet' });
+      const success = await storage.deleteUser(userId);
+      if (!success) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      res.json({ message: 'User deleted successfully' });
     } catch (error) {
       res.status(500).json({ message: 'Failed to delete user' });
     }

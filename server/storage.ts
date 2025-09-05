@@ -4,6 +4,7 @@ import {
   comments, 
   attachments, 
   auditLogs,
+  settings,
   type User, 
   type InsertUser,
   type Ticket,
@@ -13,7 +14,9 @@ import {
   type Attachment,
   type InsertAttachment,
   type AuditLog,
-  type InsertAuditLog
+  type InsertAuditLog,
+  type Setting,
+  type InsertSetting
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, asc, like, count } from "drizzle-orm";
@@ -64,6 +67,12 @@ export interface IStorage {
   // Audit log methods
   createAuditLog(log: InsertAuditLog): Promise<AuditLog>;
   getTicketAuditLogs(ticketId: string): Promise<AuditLog[]>;
+
+  // Settings methods
+  getSetting(key: string): Promise<Setting | undefined>;
+  getSettings(category?: string): Promise<Setting[]>;
+  setSetting(setting: InsertSetting): Promise<Setting>;
+  updateSetting(key: string, value: string): Promise<Setting | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -304,6 +313,47 @@ export class DatabaseStorage implements IStorage {
       .from(auditLogs)
       .where(eq(auditLogs.ticketId, ticketId))
       .orderBy(desc(auditLogs.createdAt));
+  }
+
+  async getSetting(key: string): Promise<Setting | undefined> {
+    const [setting] = await db.select().from(settings).where(eq(settings.key, key));
+    return setting || undefined;
+  }
+
+  async getSettings(category?: string): Promise<Setting[]> {
+    if (category) {
+      return await db.select()
+        .from(settings)
+        .where(eq(settings.category, category))
+        .orderBy(asc(settings.key));
+    }
+    return await db.select().from(settings).orderBy(asc(settings.key));
+  }
+
+  async setSetting(insertSetting: InsertSetting): Promise<Setting> {
+    const [setting] = await db
+      .insert(settings)
+      .values({ ...insertSetting, updatedAt: new Date() })
+      .onConflictDoUpdate({
+        target: settings.key,
+        set: { 
+          value: insertSetting.value,
+          description: insertSetting.description,
+          category: insertSetting.category,
+          updatedAt: new Date()
+        }
+      })
+      .returning();
+    return setting;
+  }
+
+  async updateSetting(key: string, value: string): Promise<Setting | undefined> {
+    const [setting] = await db
+      .update(settings)
+      .set({ value, updatedAt: new Date() })
+      .where(eq(settings.key, key))
+      .returning();
+    return setting || undefined;
   }
 }
 

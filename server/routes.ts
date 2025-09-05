@@ -9,7 +9,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { randomUUID } from "crypto";
-import { insertTicketSchema, insertCommentSchema, insertUserSchema } from "@shared/schema";
+import { insertTicketSchema, insertCommentSchema, insertUserSchema, insertSettingSchema } from "@shared/schema";
 import { z } from "zod";
 
 // Setup session middleware
@@ -370,6 +370,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ message: 'Ticket deleted successfully' });
     } catch (error) {
       res.status(500).json({ message: 'Failed to delete ticket' });
+    }
+  });
+
+  // Settings routes
+  app.get('/api/settings', requireAuth, requireRole(['admin']), async (req, res) => {
+    try {
+      const { category } = req.query;
+      const settings = await storage.getSettings(category as string);
+      res.json(settings);
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to retrieve settings' });
+    }
+  });
+
+  app.get('/api/settings/:key', requireAuth, requireRole(['admin']), async (req, res) => {
+    try {
+      const setting = await storage.getSetting(req.params.key);
+      if (!setting) {
+        return res.status(404).json({ message: 'Setting not found' });
+      }
+      res.json(setting);
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to retrieve setting' });
+    }
+  });
+
+  app.post('/api/settings', requireAuth, requireRole(['admin']), async (req: any, res) => {
+    try {
+      const settingData = insertSettingSchema.parse(req.body);
+      const setting = await storage.setSetting(settingData);
+      res.status(201).json(setting);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: 'Invalid setting data', errors: error.errors });
+      }
+      res.status(500).json({ message: 'Failed to save setting' });
+    }
+  });
+
+  app.put('/api/settings/:key', requireAuth, requireRole(['admin']), async (req, res) => {
+    try {
+      const { value } = req.body;
+      if (!value) {
+        return res.status(400).json({ message: 'Value is required' });
+      }
+
+      const setting = await storage.updateSetting(req.params.key, value);
+      if (!setting) {
+        return res.status(404).json({ message: 'Setting not found' });
+      }
+      
+      res.json(setting);
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to update setting' });
+    }
+  });
+
+  app.post('/api/settings/bulk', requireAuth, requireRole(['admin']), async (req: any, res) => {
+    try {
+      const { settings } = req.body;
+      if (!Array.isArray(settings)) {
+        return res.status(400).json({ message: 'Settings must be an array' });
+      }
+
+      const savedSettings = [];
+      for (const settingData of settings) {
+        const validatedSetting = insertSettingSchema.parse(settingData);
+        const setting = await storage.setSetting(validatedSetting);
+        savedSettings.push(setting);
+      }
+
+      res.status(201).json(savedSettings);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: 'Invalid settings data', errors: error.errors });
+      }
+      res.status(500).json({ message: 'Failed to save settings' });
     }
   });
 

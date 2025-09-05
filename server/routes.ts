@@ -324,7 +324,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update user
-  app.patch('/api/users/:id', requireAuth, requireRole(['admin']), async (req, res) => {
+  app.put('/api/users/:id', requireAuth, requireRole(['admin']), async (req, res) => {
     try {
       const updateData = insertUserSchema.partial().parse(req.body);
       const user = await storage.updateUser(req.params.id, updateData);
@@ -351,6 +351,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Invalid user data', errors: error.errors });
       }
       res.status(500).json({ message: 'Failed to update user' });
+    }
+  });
+
+  // Reset user password
+  app.put('/api/users/:id/reset-password', requireAuth, requireRole(['admin']), async (req, res) => {
+    try {
+      const { password } = req.body;
+      
+      if (!password || password.length < 6) {
+        return res.status(400).json({ message: 'Password must be at least 6 characters long' });
+      }
+
+      const user = await storage.getUser(req.params.id);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      // Update user with new password
+      const updatedUser = await storage.updateUser(req.params.id, { password });
+      
+      if (!updatedUser) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      res.json({ message: 'Password reset successfully' });
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to reset password' });
     }
   });
 

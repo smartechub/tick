@@ -78,7 +78,7 @@ export default function TicketDetail() {
       const response = await apiRequest('PATCH', `/api/tickets/${id}`, updates);
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (updatedTicket) => {
       toast({
         title: "Ticket Updated",
         description: "The ticket has been updated successfully.",
@@ -86,6 +86,13 @@ export default function TicketDetail() {
       queryClient.invalidateQueries({ queryKey: [`/api/tickets/${id}`] });
       queryClient.invalidateQueries({ queryKey: ['/api/tickets'] });
       queryClient.invalidateQueries({ queryKey: ['/api/tickets/stats'] });
+      
+      // Redirect to all tickets if status is closed
+      if (updatedTicket.status === 'closed') {
+        setTimeout(() => {
+          setLocation('/tickets');
+        }, 1500); // Wait 1.5 seconds to let user see the success message
+      }
     },
     onError: (error: Error) => {
       toast({

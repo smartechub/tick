@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { login, type AuthUser } from "@/lib/auth";
-import { Headphones } from "lucide-react";
+import lightLogo from "@assets/Light_Logo_1752837156719_1757055237167.png";
 
 interface LoginProps {
   onLogin: (user: AuthUser) => void;
@@ -45,10 +45,10 @@ export default function Login({ onLogin }: LoginProps) {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
-          <div className="mx-auto h-16 w-16 bg-primary rounded-xl flex items-center justify-center">
-            <Headphones className="text-2xl text-primary-foreground h-8 w-8" />
+          <div className="mx-auto flex justify-center">
+            <img src={lightLogo} alt="Light Finance" className="h-16 w-auto" />
           </div>
-          <h2 className="mt-6 text-3xl font-bold text-gray-900">IT Ticketing System</h2>
+          <h2 className="mt-6 text-3xl font-bold text-gray-900">IT Support Portal</h2>
           <p className="mt-2 text-sm text-gray-600">Sign in to your account</p>
         </div>
 

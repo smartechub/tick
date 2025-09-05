@@ -12,6 +12,7 @@ import Dashboard from "./pages/dashboard";
 import Tickets from "./pages/tickets";
 import CreateTicket from "./pages/create-ticket";
 import TicketDetail from "./pages/ticket-detail";
+import Reports from "./pages/reports";
 import NotFound from "./pages/not-found";
 
 function AuthenticatedApp({ user, onLogout }: { user: AuthUser; onLogout: () => void }) {
@@ -26,6 +27,7 @@ function AuthenticatedApp({ user, onLogout }: { user: AuthUser; onLogout: () => 
             <Route path="/tickets/:id" component={TicketDetail} />
             <Route path="/tickets" component={Tickets} />
             <Route path="/create-ticket" component={CreateTicket} />
+            <Route path="/reports" component={Reports} />
             <Route path="/">
               <Dashboard />
             </Route>

@@ -342,7 +342,8 @@ export default function TicketDetail() {
                     <Calendar className="h-4 w-4 text-muted-foreground" />
                     <div>
                       <p className="text-xs text-muted-foreground">Created</p>
-                      <p className="text-sm font-medium">{getTimeAgo(ticket.createdAt)}</p>
+                      <p className="text-sm font-medium">{formatDateTime(ticket.createdAt)}</p>
+                      <p className="text-xs text-muted-foreground">{getTimeAgo(ticket.createdAt)}</p>
                     </div>
                   </div>
                 </CardContent>

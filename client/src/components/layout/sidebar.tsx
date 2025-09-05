@@ -6,7 +6,6 @@ import {
   Plus, 
   BarChart3, 
   Settings,
-  Headphones,
   LogOut
 } from "lucide-react";
 import type { AuthUser } from "@/lib/auth";
@@ -14,6 +13,7 @@ import { getInitials } from "@/lib/utils";
 import { logout } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import lightLogo from "@assets/Light_Logo_1752837156719_1757055237167.png";
 
 interface SidebarProps {
   user: AuthUser;
@@ -60,10 +60,7 @@ export function Sidebar({ user, onLogout }: SidebarProps) {
       <div className="flex flex-col flex-grow pt-5 bg-card border-r border-border overflow-y-auto">
         {/* Logo */}
         <div className="flex items-center flex-shrink-0 px-4" data-testid="sidebar-logo">
-          <div className="h-10 w-10 bg-primary rounded-lg flex items-center justify-center">
-            <Headphones className="text-primary-foreground h-6 w-6" />
-          </div>
-          <span className="ml-3 text-lg font-semibold text-foreground">IT Support</span>
+          <img src={lightLogo} alt="Light Finance" className="h-10 w-auto" />
         </div>
 
         {/* Navigation */}

@@ -11,6 +11,7 @@ import fs from "fs";
 import { randomUUID } from "crypto";
 import { insertTicketSchema, insertCommentSchema, insertUserSchema, insertSettingSchema } from "@shared/schema";
 import { z } from "zod";
+import { emailService } from "./email";
 
 // Setup session middleware
 const sessionMiddleware = session({
@@ -320,6 +321,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         newValue: ticket.status
       });
 
+      // Send email notifications asynchronously
+      emailService.sendTicketCreatedEmail(ticket, ticket.employeeEmail).catch(error => {
+        console.error('Failed to send ticket created email:', error);
+      });
+
       res.status(201).json(ticket);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -447,6 +453,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Invalid settings data', errors: error.errors });
       }
       res.status(500).json({ message: 'Failed to save settings' });
+    }
+  });
+
+  app.post('/api/settings/test-email', requireAuth, requireRole(['admin']), async (req: any, res) => {
+    try {
+      const { email } = req.body;
+      if (!email) {
+        return res.status(400).json({ message: 'Email address is required' });
+      }
+
+      // Validate email format
+      const emailSchema = z.string().email();
+      const validatedEmail = emailSchema.parse(email);
+
+      await emailService.sendTestEmail(validatedEmail);
+      res.json({ message: 'Test email sent successfully' });
+    } catch (error) {
+      console.error('Test email error:', error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: 'Invalid email address' });
+      }
+      res.status(500).json({ 
+        message: 'Failed to send test email', 
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   });
 

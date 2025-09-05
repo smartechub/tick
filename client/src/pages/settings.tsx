@@ -16,6 +16,7 @@ export default function Settings() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isTesting, setIsTesting] = useState(false);
+  const [testEmail, setTestEmail] = useState("");
   const [formData, setFormData] = useState({
     emailEnabled: true,
     smtpHost: "",
@@ -127,15 +128,42 @@ IT Support Team`,
   };
 
   const handleTestEmail = async () => {
-    setIsTesting(true);
-    // Simulate testing email configuration
-    setTimeout(() => {
-      setIsTesting(false);
+    if (!testEmail) {
       toast({
-        title: "Test email sent",
-        description: "A test email has been sent successfully. Check your inbox.",
+        title: "Email required",
+        description: "Please enter an email address to send the test email.",
+        variant: "destructive",
       });
-    }, 2000);
+      return;
+    }
+
+    setIsTesting(true);
+    try {
+      const response = await fetch('/api/settings/test-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: testEmail })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || errorData.message || 'Failed to send test email');
+      }
+
+      toast({
+        title: "Test email sent!",
+        description: `Test email has been sent to ${testEmail}. Check your inbox.`,
+      });
+    } catch (error) {
+      console.error('Test email error:', error);
+      toast({
+        title: "Test email failed",
+        description: error instanceof Error ? error.message : "Failed to send test email. Please check your SMTP configuration.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsTesting(false);
+    }
   };
 
   const handleInputChange = (field: string, value: string | boolean) => {
@@ -394,16 +422,28 @@ IT Support Team`,
                   </div>
                 </div>
 
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={handleTestEmail}
-                    disabled={isTesting}
-                    className="flex items-center gap-2"
-                  >
-                    <TestTube className="h-4 w-4" />
-                    {isTesting ? "Sending Test..." : "Send Test Email"}
-                  </Button>
+                <div className="space-y-4 pt-4 border-t">
+                  <div className="space-y-2">
+                    <Label htmlFor="test-email">Test Email Address</Label>
+                    <Input
+                      id="test-email"
+                      type="email"
+                      placeholder="Enter email to test SMTP configuration"
+                      value={testEmail}
+                      onChange={(e) => setTestEmail(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={handleTestEmail}
+                      disabled={isTesting || !formData.emailEnabled}
+                      className="flex items-center gap-2"
+                    >
+                      <TestTube className="h-4 w-4" />
+                      {isTesting ? "Sending Test..." : "Send Test Email"}
+                    </Button>
+                  </div>
                 </div>
               </div>
             )}

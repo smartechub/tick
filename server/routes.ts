@@ -407,6 +407,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Bulk delete users
+  app.delete('/api/users/bulk', requireAuth, requireRole(['admin']), async (req: any, res) => {
+    try {
+      const { employeeIds } = req.body;
+      
+      if (!Array.isArray(employeeIds) || employeeIds.length === 0) {
+        return res.status(400).json({ message: 'Employee IDs array is required' });
+      }
+
+      const results = { deleted: 0, notFound: [] as string[] };
+      
+      for (const employeeId of employeeIds) {
+        try {
+          // Find user by employee ID
+          const user = await storage.getUserByEmployeeId(employeeId);
+          if (!user) {
+            results.notFound.push(employeeId);
+            continue;
+          }
+
+          // Prevent deleting own account
+          if (user.id === req.user.id) {
+            results.notFound.push(`${employeeId} (cannot delete own account)`);
+            continue;
+          }
+
+          // Delete the user
+          const success = await storage.deleteUser(user.id);
+          if (success) {
+            results.deleted++;
+          } else {
+            results.notFound.push(employeeId);
+          }
+        } catch (error) {
+          results.notFound.push(employeeId);
+        }
+      }
+
+      res.json({
+        message: `Deleted ${results.deleted} users, ${results.notFound.length} not found`,
+        deleted: results.deleted,
+        notFound: results.notFound
+      });
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to delete users' });
+    }
+  });
+
   // Ticket routes
   app.get('/api/tickets', requireAuth, async (req: any, res) => {
     try {

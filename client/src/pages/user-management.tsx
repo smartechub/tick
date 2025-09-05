@@ -74,6 +74,8 @@ export default function UserManagement() {
   const [isResetPasswordDialogOpen, setIsResetPasswordDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
+  const [bulkDeleteEmployeeIds, setBulkDeleteEmployeeIds] = useState("");
   const [bulkImportFile, setBulkImportFile] = useState<File | null>(null);
   const [parsedData, setParsedData] = useState<ParsedUserData[]>([]);
   const [isProcessing, setBulkProcessing] = useState(false);
@@ -283,6 +285,30 @@ export default function UserManagement() {
     },
   });
 
+  // Bulk delete mutation
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (employeeIds: string[]) => {
+      const response = await apiRequest('DELETE', '/api/users/bulk', { employeeIds });
+      return response.json();
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      setIsBulkDeleteDialogOpen(false);
+      setBulkDeleteEmployeeIds("");
+      toast({
+        title: "Bulk delete completed",
+        description: `Successfully deleted ${result.deleted} users${result.notFound.length > 0 ? `, ${result.notFound.length} not found` : ''}.`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to delete users",
+        description: error.message || "An error occurred during bulk delete.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -432,14 +458,15 @@ EMP002,jane.smith,password123,Jane Smith,jane.smith@company.com,+1234567891,HR,H
             Manage system users and their roles
           </p>
         </div>
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button data-testid="create-user-button">
-              <Plus className="mr-2 h-4 w-4" />
-              Create User
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[600px]" data-testid="create-user-dialog">
+        <div className="flex gap-2">
+          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+            <DialogTrigger asChild>
+              <Button data-testid="create-user-button">
+                <Plus className="mr-2 h-4 w-4" />
+                Create User
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[600px]" data-testid="create-user-dialog">
             <DialogHeader>
               <DialogTitle>Create New User</DialogTitle>
               <DialogDescription>
@@ -619,6 +646,97 @@ EMP002,jane.smith,password123,Jane Smith,jane.smith@company.com,+1234567891,HR,H
             </Form>
           </DialogContent>
         </Dialog>
+          
+          <Dialog open={isBulkDeleteDialogOpen} onOpenChange={setIsBulkDeleteDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="destructive" data-testid="bulk-delete-button">
+                <Trash2 className="mr-2 h-4 w-4" />
+                Bulk Delete
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[500px]">
+              <DialogHeader>
+                <DialogTitle>Bulk Delete Users</DialogTitle>
+                <DialogDescription>
+                  Enter employee IDs separated by commas, spaces, or new lines to delete multiple users at once.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="employeeIds">Employee IDs</Label>
+                  <textarea
+                    id="employeeIds"
+                    className="min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    placeholder="Enter employee IDs (e.g., EMP001, EMP002, EMP003)"
+                    value={bulkDeleteEmployeeIds}
+                    onChange={(e) => setBulkDeleteEmployeeIds(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    You can separate IDs with commas, spaces, or new lines
+                  </p>
+                </div>
+                
+                {bulkDeleteEmployeeIds.trim() && (
+                  <div className="rounded-lg border border-border bg-muted/50 p-3">
+                    <p className="text-sm font-medium text-muted-foreground mb-2">Preview:</p>
+                    <div className="flex flex-wrap gap-1">
+                      {bulkDeleteEmployeeIds
+                        .split(/[,\s\n]+/)
+                        .filter(id => id.trim())
+                        .map((id, index) => (
+                          <Badge key={index} variant="secondary">
+                            {id.trim()}
+                          </Badge>
+                        ))}
+                    </div>
+                  </div>
+                )}
+
+                <Alert>
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    <strong>Warning:</strong> This action cannot be undone. All selected users will be permanently removed from the system.
+                  </AlertDescription>
+                </Alert>
+              </div>
+              
+              <div className="flex justify-end space-x-2 pt-4">
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setIsBulkDeleteDialogOpen(false);
+                    setBulkDeleteEmployeeIds("");
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  variant="destructive"
+                  onClick={() => {
+                    const employeeIds = bulkDeleteEmployeeIds
+                      .split(/[,\s\n]+/)
+                      .map(id => id.trim())
+                      .filter(id => id);
+                    
+                    if (employeeIds.length === 0) {
+                      toast({
+                        title: "No employee IDs provided",
+                        description: "Please enter at least one employee ID.",
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+                    
+                    bulkDeleteMutation.mutate(employeeIds);
+                  }}
+                  disabled={bulkDeleteMutation.isPending || !bulkDeleteEmployeeIds.trim()}
+                >
+                  {bulkDeleteMutation.isPending ? "Deleting..." : `Delete ${bulkDeleteEmployeeIds.split(/[,\s\n]+/).filter(id => id.trim()).length} Users`}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       {/* View User Dialog */}

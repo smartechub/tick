@@ -3,36 +3,16 @@ import { Input } from "@/components/ui/input";
 import { Bell, Search, Menu } from "lucide-react";
 import type { AuthUser } from "@/lib/auth";
 import { getInitials } from "@/lib/utils";
-import { logout } from "@/lib/auth";
 import { useLocation } from "wouter";
 import { useState } from "react";
-import { useToast } from "@/hooks/use-toast";
 
 interface HeaderProps {
   user: AuthUser;
-  onLogout: () => void;
 }
 
-export function Header({ user, onLogout }: HeaderProps) {
+export function Header({ user }: HeaderProps) {
   const [location, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
-  const { toast } = useToast();
-
-  const handleLogout = async () => {
-    try {
-      await logout();
-      onLogout();
-      toast({
-        title: "Logged out successfully",
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to logout",
-        variant: "destructive",
-      });
-    }
-  };
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -101,14 +81,6 @@ export function Header({ user, onLogout }: HeaderProps) {
                 {getInitials(user.name)}
               </span>
             </div>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={handleLogout}
-              data-testid="logout-button"
-            >
-              Logout
-            </Button>
           </div>
         </div>
       </div>

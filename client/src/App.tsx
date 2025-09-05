@@ -19,9 +19,9 @@ import NotFound from "./pages/not-found";
 function AuthenticatedApp({ user, onLogout }: { user: AuthUser; onLogout: () => void }) {
   return (
     <div className="flex h-screen bg-background">
-      <Sidebar user={user} />
+      <Sidebar user={user} onLogout={onLogout} />
       <div className="flex flex-col flex-1 overflow-hidden">
-        <Header user={user} onLogout={onLogout} />
+        <Header user={user} />
         <main className="flex-1 overflow-y-auto p-6">
           <Switch>
             <Route path="/dashboard" component={Dashboard} />

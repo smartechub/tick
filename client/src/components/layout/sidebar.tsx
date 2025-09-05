@@ -6,17 +6,39 @@ import {
   Plus, 
   BarChart3, 
   Settings,
-  Headphones
+  Headphones,
+  LogOut
 } from "lucide-react";
 import type { AuthUser } from "@/lib/auth";
 import { getInitials } from "@/lib/utils";
+import { logout } from "@/lib/auth";
+import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
 
 interface SidebarProps {
   user: AuthUser;
+  onLogout: () => void;
 }
 
-export function Sidebar({ user }: SidebarProps) {
+export function Sidebar({ user, onLogout }: SidebarProps) {
   const [location] = useLocation();
+  const { toast } = useToast();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      onLogout();
+      toast({
+        title: "Logged out successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to logout",
+        variant: "destructive",
+      });
+    }
+  };
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -69,21 +91,32 @@ export function Sidebar({ user }: SidebarProps) {
           </nav>
 
           {/* User Profile */}
-          <div className="flex-shrink-0 flex border-t border-border p-4" data-testid="user-profile">
-            <div className="flex items-center">
-              <div className="h-8 w-8 bg-primary rounded-full flex items-center justify-center">
-                <span className="text-xs font-medium text-primary-foreground">
-                  {getInitials(user.name)}
-                </span>
+          <div className="flex-shrink-0 border-t border-border p-4" data-testid="user-profile">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <div className="h-8 w-8 bg-primary rounded-full flex items-center justify-center">
+                  <span className="text-xs font-medium text-primary-foreground">
+                    {getInitials(user.name)}
+                  </span>
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-foreground" data-testid="user-name">
+                    {user.name}
+                  </p>
+                  <p className="text-xs text-muted-foreground capitalize" data-testid="user-role">
+                    {user.role}
+                  </p>
+                </div>
               </div>
-              <div className="ml-3">
-                <p className="text-sm font-medium text-foreground" data-testid="user-name">
-                  {user.name}
-                </p>
-                <p className="text-xs text-muted-foreground capitalize" data-testid="user-role">
-                  {user.role}
-                </p>
-              </div>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={handleLogout}
+                className="p-2"
+                data-testid="logout-button"
+              >
+                <LogOut className="h-4 w-4" />
+              </Button>
             </div>
           </div>
         </div>

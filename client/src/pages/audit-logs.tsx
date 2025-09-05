@@ -163,14 +163,13 @@ export default function AuditLogs() {
             </div>
             <div>
               <label className="text-sm font-medium mb-2 block">Action</label>
-              <Select value={filters.action} onValueChange={(value) => 
-                setFilters(prev => ({ ...prev, action: value, page: 1 }))
+              <Select value={filters.action || undefined} onValueChange={(value) => 
+                setFilters(prev => ({ ...prev, action: value || '', page: 1 }))
               }>
                 <SelectTrigger data-testid="action-filter">
                   <SelectValue placeholder="All actions" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All actions</SelectItem>
                   <SelectItem value="login">Login</SelectItem>
                   <SelectItem value="logout">Logout</SelectItem>
                   <SelectItem value="api_call">API Call</SelectItem>

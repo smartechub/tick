@@ -25,7 +25,7 @@ import bcrypt from "bcrypt";
 export interface IStorage {
   // User methods
   getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
+  getUserByEmailOrEmployeeId(emailOrEmployeeId: string): Promise<User | undefined>;
   getUserByEmployeeId(employeeId: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: string, user: Partial<InsertUser>): Promise<User | undefined>;
@@ -83,8 +83,13 @@ export class DatabaseStorage implements IStorage {
     return user || undefined;
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.username, username));
+  async getUserByEmailOrEmployeeId(emailOrEmployeeId: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(
+      or(
+        eq(users.email, emailOrEmployeeId),
+        eq(users.employeeId, emailOrEmployeeId)
+      )
+    );
     return user || undefined;
   }
 

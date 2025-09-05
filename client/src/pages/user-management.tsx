@@ -25,7 +25,6 @@ import Papa from "papaparse";
 // Form validation schema matching backend requirements
 const createUserSchema = z.object({
   employeeId: z.string().min(1, "Employee ID is required"),
-  username: z.string().min(1, "Username is required"),
   password: z.string().min(6, "Password must be at least 6 characters"),
   name: z.string().min(1, "Full name is required"),
   email: z.string().email("Valid email is required"),
@@ -42,7 +41,6 @@ type CreateUserForm = z.infer<typeof createUserSchema>;
 interface User {
   id: string;
   employeeId: string;
-  username: string;
   name: string;
   email: string;
   mobile: string;
@@ -54,7 +52,6 @@ interface User {
 
 interface ParsedUserData {
   employeeId: string;
-  username: string;
   password: string;
   name: string;
   email: string;
@@ -101,7 +98,6 @@ export default function UserManagement() {
     resolver: zodResolver(createUserSchema),
     defaultValues: {
       employeeId: "",
-      username: "",
       password: "",
       name: "",
       email: "",
@@ -178,7 +174,6 @@ export default function UserManagement() {
     // Pre-populate form with user data
     form.reset({
       employeeId: user.employeeId,
-      username: user.username,
       password: "", // Don't pre-fill password
       name: user.name,
       email: user.email,
@@ -336,7 +331,6 @@ export default function UserManagement() {
         const parsedUsers: ParsedUserData[] = results.data.map((row: any, index) => {
           const user: ParsedUserData = {
             employeeId: row.employeeId || row.EmployeeID || row['Employee ID'] || '',
-            username: row.username || row.Username || '',
             password: row.password || row.Password || '',
             name: row.name || row.Name || row['Full Name'] || '',
             email: row.email || row.Email || row['Email Address'] || '',
@@ -350,7 +344,6 @@ export default function UserManagement() {
 
           // Validate each field
           if (!user.employeeId) user.errors.push('Employee ID is required');
-          if (!user.username) user.errors.push('Username is required');
           if (!user.password) user.errors.push('Password is required');
           if (!user.name) user.errors.push('Full name is required');
           if (!user.email || !user.email.includes('@')) user.errors.push('Valid email is required');
@@ -399,7 +392,6 @@ export default function UserManagement() {
     // Convert to the format expected by the API
     const usersToCreate: CreateUserForm[] = validUsers.map(user => ({
       employeeId: user.employeeId,
-      username: user.username,
       password: user.password,
       name: user.name,
       email: user.email,
@@ -419,9 +411,9 @@ export default function UserManagement() {
   };
 
   const downloadTemplate = () => {
-    const csvContent = `employeeId,username,password,name,email,mobile,department,designation,role
-EMP001,john.doe,password123,John Doe,john.doe@company.com,+1234567890,IT,Software Developer,user
-EMP002,jane.smith,password123,Jane Smith,jane.smith@company.com,+1234567891,HR,HR Manager,admin`;
+    const csvContent = `employeeId,password,name,email,mobile,department,designation,role
+EMP001,password123,John Doe,john.doe@company.com,+1234567890,IT,Software Developer,user
+EMP002,password123,Jane Smith,jane.smith@company.com,+1234567891,HR,HR Manager,admin`;
     
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
@@ -475,34 +467,19 @@ EMP002,jane.smith,password123,Jane Smith,jane.smith@company.com,+1234567891,HR,H
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="employeeId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Employee ID</FormLabel>
-                        <FormControl>
-                          <Input placeholder="EMP001" data-testid="input-employee-id" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="username"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Username</FormLabel>
-                        <FormControl>
-                          <Input placeholder="john.doe" data-testid="input-username" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+                <FormField
+                  control={form.control}
+                  name="employeeId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Employee ID</FormLabel>
+                      <FormControl>
+                        <Input placeholder="EMP001" data-testid="input-employee-id" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
                 <FormField
                   control={form.control}
@@ -756,23 +733,17 @@ EMP002,jane.smith,password123,Jane Smith,jane.smith@company.com,+1234567891,HR,H
                   <p className="text-sm">{selectedUser.employeeId}</p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Username</Label>
-                  <p className="text-sm">@{selectedUser.username}</p>
+                  <Label className="text-sm font-medium text-muted-foreground">Email</Label>
+                  <p className="text-sm">{selectedUser.email}</p>
                 </div>
               </div>
               <div>
                 <Label className="text-sm font-medium text-muted-foreground">Full Name</Label>
                 <p className="text-sm">{selectedUser.name}</p>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Email</Label>
-                  <p className="text-sm">{selectedUser.email}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Mobile</Label>
-                  <p className="text-sm">{selectedUser.mobile}</p>
-                </div>
+              <div>
+                <Label className="text-sm font-medium text-muted-foreground">Mobile</Label>
+                <p className="text-sm">{selectedUser.mobile}</p>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -822,34 +793,19 @@ EMP002,jane.smith,password123,Jane Smith,jane.smith@company.com,+1234567891,HR,H
                 updateUserMutation.mutate({ userId: selectedUser.id, userData: data });
               }
             })} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="employeeId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Employee ID</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="username"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Username</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+              <FormField
+                control={form.control}
+                name="employeeId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Employee ID</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <FormField
                 control={form.control}
@@ -1185,12 +1141,7 @@ EMP002,jane.smith,password123,Jane Smith,jane.smith@company.com,+1234567891,HR,H
                       {users.map((user) => (
                         <TableRow key={user.id} data-testid={`user-row-${user.employeeId}`}>
                           <TableCell className="font-medium">{user.employeeId}</TableCell>
-                          <TableCell>
-                            <div>
-                              <div className="font-medium">{user.name}</div>
-                              <div className="text-sm text-muted-foreground">@{user.username}</div>
-                            </div>
-                          </TableCell>
+                          <TableCell className="font-medium">{user.name}</TableCell>
                           <TableCell>{user.email}</TableCell>
                           <TableCell>{user.department}</TableCell>
                           <TableCell>{user.designation}</TableCell>

@@ -10,10 +10,9 @@ export const ticketPriorityEnum = pgEnum("ticket_priority", ["low", "medium", "h
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   employeeId: text("employee_id").notNull().unique(),
-  username: text("username").notNull().unique(),
   password: text("password").notNull(),
   name: text("name").notNull(),
-  email: text("email").notNull(),
+  email: text("email").notNull().unique(),
   mobile: text("mobile"),
   department: text("department"),
   designation: text("designation"),

@@ -61,7 +61,7 @@ export default function Login({ onLogin }: LoginProps) {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="username">Username</Label>
+                <Label htmlFor="username">Employee ID or Email</Label>
                 <Input
                   id="username"
                   name="username"
@@ -69,7 +69,7 @@ export default function Login({ onLogin }: LoginProps) {
                   required
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Enter your username"
+                  placeholder="Enter your employee ID or email"
                   data-testid="input-username"
                 />
               </div>

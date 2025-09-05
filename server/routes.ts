@@ -28,14 +28,15 @@ const sessionMiddleware = session({
 passport.use(new LocalStrategy(
   async (username, password, done) => {
     try {
-      const user = await storage.getUserByUsername(username);
+      // Username field now accepts either employee ID or email
+      const user = await storage.getUserByEmailOrEmployeeId(username);
       if (!user) {
-        return done(null, false, { message: 'Invalid username or password' });
+        return done(null, false, { message: 'Invalid employee ID/email or password' });
       }
 
       const isValidPassword = await bcrypt.compare(password, user.password);
       if (!isValidPassword) {
-        return done(null, false, { message: 'Invalid username or password' });
+        return done(null, false, { message: 'Invalid employee ID/email or password' });
       }
 
       return done(null, user);
@@ -104,11 +105,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Initialize with default admin user if none exists
   try {
-    const adminUser = await storage.getUserByUsername('admin');
+    const adminUser = await storage.getUserByEmailOrEmployeeId('admin@company.com');
     if (!adminUser) {
       await storage.createUser({
         employeeId: 'EMP001',
-        username: 'admin',
         password: 'Admin@123',
         name: 'Administrator',
         email: 'admin@company.com',
@@ -121,7 +121,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create some sample users for testing
       await storage.createUser({
         employeeId: 'EMP002',
-        username: 'john.smith',
         password: 'password123',
         name: 'John Smith',
         email: 'john.smith@company.com',
@@ -133,7 +132,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       await storage.createUser({
         employeeId: 'EMP003',
-        username: 'sarah.johnson',
         password: 'password123',
         name: 'Sarah Johnson',
         email: 'sarah.johnson@company.com',
@@ -145,7 +143,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       await storage.createUser({
         employeeId: 'EMP004',
-        username: 'michael.chen',
         password: 'password123',
         name: 'Michael Chen',
         email: 'michael.chen@company.com',
@@ -165,7 +162,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       user: {
         id: req.user.id,
         employeeId: req.user.employeeId,
-        username: req.user.username,
         name: req.user.name,
         email: req.user.email,
         mobile: req.user.mobile,
@@ -190,7 +186,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       user: {
         id: req.user.id,
         employeeId: req.user.employeeId,
-        username: req.user.username,
         name: req.user.name,
         email: req.user.email,
         mobile: req.user.mobile,
@@ -208,7 +203,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const safeUsers = users.map(user => ({
         id: user.id,
         employeeId: user.employeeId,
-        username: user.username,
+
         name: user.name,
         email: user.email,
         mobile: user.mobile,
@@ -230,7 +225,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const safeUser = {
         id: user.id,
         employeeId: user.employeeId,
-        username: user.username,
+
         name: user.name,
         email: user.email,
         mobile: user.mobile,
@@ -269,7 +264,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             user: {
               id: user.id,
               employeeId: user.employeeId,
-              username: user.username,
+      
               name: user.name,
               email: user.email,
               mobile: user.mobile,
@@ -308,7 +303,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const safeUser = {
         id: user.id,
         employeeId: user.employeeId,
-        username: user.username,
+
         name: user.name,
         email: user.email,
         mobile: user.mobile,
@@ -336,7 +331,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const safeUser = {
         id: user.id,
         employeeId: user.employeeId,
-        username: user.username,
+
         name: user.name,
         email: user.email,
         mobile: user.mobile,
@@ -599,7 +594,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           updatedTicket, 
           oldStatus, 
           req.body.status, 
-          req.user.username || req.user.email
+          req.user.email
         ).catch(error => {
           console.error('❌ Failed to send status update email:', error);
         });
@@ -769,7 +764,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       emailService.sendCommentAddedEmail(
         ticket, 
         comment, 
-        req.user.username || req.user.email
+        req.user.email
       ).catch(error => {
         console.error('❌ Failed to send comment notification email:', error);
       });

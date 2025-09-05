@@ -133,8 +133,15 @@ ${settings.senderName}`,
 
   async sendTicketCreatedEmail(ticket: any, employeeEmail: string): Promise<void> {
     try {
+      console.log(`📧 Starting ticket created email process for ticket ${ticket.ticketNumber} to ${employeeEmail}`);
+      
       const settings = await this.getEmailSettings();
-      if (!settings) return;
+      if (!settings) {
+        console.log('⚠️ Email settings not found or disabled, skipping email notification');
+        return;
+      }
+
+      console.log('✅ Email settings loaded successfully');
 
       const settingsMap = await this.getTemplateSettings();
       const subject = this.interpolateTemplate(
@@ -146,9 +153,13 @@ ${settings.senderName}`,
         ticket
       );
 
+      console.log(`📝 Email template prepared with subject: ${subject}`);
+
       const transporter = await this.createTransporter(settings);
+      console.log('🔗 SMTP transporter created successfully');
 
       // Send to employee
+      console.log(`📤 Sending email to employee: ${employeeEmail}`);
       await transporter.sendMail({
         from: `"${settings.senderName}" <${settings.senderEmail || settings.username}>`,
         to: employeeEmail,
@@ -156,9 +167,11 @@ ${settings.senderName}`,
         text: body,
         html: this.convertToHtml(body)
       });
+      console.log('✅ Employee email sent successfully');
 
       // Send to IT team if configured
       if (settings.itTeamEmail) {
+        console.log(`📤 Sending email to IT team: ${settings.itTeamEmail}`);
         await transporter.sendMail({
           from: `"${settings.senderName}" <${settings.senderEmail || settings.username}>`,
           to: settings.itTeamEmail,
@@ -166,11 +179,16 @@ ${settings.senderName}`,
           text: `IT Team Notification:\n\n${body}`,
           html: this.convertToHtml(`<strong>IT Team Notification:</strong><br><br>${body}`)
         });
+        console.log('✅ IT team email sent successfully');
+      } else {
+        console.log('ℹ️ No IT team email configured, skipping IT notification');
       }
 
-      console.log(`Ticket created emails sent for ticket ${ticket.ticketNumber}`);
+      console.log(`🎉 All ticket created emails sent successfully for ticket ${ticket.ticketNumber}`);
     } catch (error) {
-      console.error('Failed to send ticket created email:', error);
+      console.error('❌ Failed to send ticket created email:', error);
+      console.error('❌ Error details:', error instanceof Error ? error.message : error);
+      throw error; // Re-throw to ensure calling code knows about the failure
     }
   }
 

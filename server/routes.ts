@@ -322,8 +322,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Send email notifications asynchronously
+      console.log(`Attempting to send ticket created email to: ${ticket.employeeEmail}`);
       emailService.sendTicketCreatedEmail(ticket, ticket.employeeEmail).catch(error => {
-        console.error('Failed to send ticket created email:', error);
+        console.error('❌ Failed to send ticket created email:', error);
+        console.error('❌ Error details:', error.message);
       });
 
       res.status(201).json(ticket);

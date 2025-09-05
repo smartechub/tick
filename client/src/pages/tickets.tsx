@@ -39,9 +39,9 @@ export default function Tickets() {
 
   const queryParams = new URLSearchParams();
   if (searchQuery) queryParams.append('search', searchQuery);
-  if (statusFilter) queryParams.append('status', statusFilter);
-  if (priorityFilter) queryParams.append('priority', priorityFilter);
-  if (departmentFilter) queryParams.append('department', departmentFilter);
+  if (statusFilter && statusFilter !== 'all') queryParams.append('status', statusFilter);
+  if (priorityFilter && priorityFilter !== 'all') queryParams.append('priority', priorityFilter);
+  if (departmentFilter && departmentFilter !== 'all') queryParams.append('department', departmentFilter);
   queryParams.append('page', currentPage.toString());
   queryParams.append('limit', '20');
 
@@ -144,7 +144,7 @@ export default function Tickets() {
                   <SelectValue placeholder="All Statuses" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Statuses</SelectItem>
+                  <SelectItem value="all">All Statuses</SelectItem>
                   <SelectItem value="open">Open</SelectItem>
                   <SelectItem value="in_progress">In Progress</SelectItem>
                   <SelectItem value="on_hold">On Hold</SelectItem>
@@ -158,7 +158,7 @@ export default function Tickets() {
                   <SelectValue placeholder="All Priorities" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Priorities</SelectItem>
+                  <SelectItem value="all">All Priorities</SelectItem>
                   <SelectItem value="low">Low</SelectItem>
                   <SelectItem value="medium">Medium</SelectItem>
                   <SelectItem value="high">High</SelectItem>
@@ -171,7 +171,7 @@ export default function Tickets() {
                   <SelectValue placeholder="All Departments" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Departments</SelectItem>
+                  <SelectItem value="all">All Departments</SelectItem>
                   <SelectItem value="IT">IT</SelectItem>
                   <SelectItem value="HR">HR</SelectItem>
                   <SelectItem value="Finance">Finance</SelectItem>

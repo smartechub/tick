@@ -116,8 +116,8 @@ export class DatabaseStorage implements IStorage {
 
   async createTicket(insertTicket: InsertTicket): Promise<Ticket> {
     // Generate ticket number
-    const count = await db.select({ count: count() }).from(tickets);
-    const ticketNumber = `TKT-${String(count[0].count + 1).padStart(3, '0')}`;
+    const ticketCount = await db.select({ count: count() }).from(tickets);
+    const ticketNumber = `TKT-${String(ticketCount[0].count + 1).padStart(3, '0')}`;
     
     // Calculate SLA deadline based on priority
     const slaHours = {
@@ -142,7 +142,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateTicket(id: string, updateTicket: Partial<InsertTicket>): Promise<Ticket | undefined> {
-    const updateData = { ...updateTicket, updatedAt: new Date() };
+    const updateData: any = { ...updateTicket, updatedAt: new Date() };
     
     if (updateTicket.status === 'resolved' || updateTicket.status === 'closed') {
       updateData.resolvedAt = new Date();
@@ -158,7 +158,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteTicket(id: string): Promise<boolean> {
     const result = await db.delete(tickets).where(eq(tickets.id, id));
-    return result.rowCount > 0;
+    return (result.rowCount || 0) > 0;
   }
 
   async getTickets(filters: {

@@ -94,7 +94,7 @@ export default function Login({ onLogin }: LoginProps) {
                   <Checkbox
                     id="remember-me"
                     checked={rememberMe}
-                    onCheckedChange={setRememberMe}
+                    onCheckedChange={(checked) => setRememberMe(checked === true)}
                     data-testid="checkbox-remember"
                   />
                   <Label htmlFor="remember-me" className="text-sm">Remember me</Label>

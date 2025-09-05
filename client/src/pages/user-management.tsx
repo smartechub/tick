@@ -10,13 +10,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Plus, Users, UserPlus, Upload, FileText, X, Download, AlertCircle, CheckCircle2, Edit, Trash2, Eye, MoreHorizontal } from "lucide-react";
+import { Plus, Users, UserPlus, Upload, FileText, X, Download, AlertCircle, CheckCircle2, Edit, Trash2, Eye, MoreHorizontal, Lock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import Papa from "papaparse";
@@ -70,6 +70,7 @@ export default function UserManagement() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isResetPasswordDialogOpen, setIsResetPasswordDialogOpen] = useState(false);
   const [bulkImportFile, setBulkImportFile] = useState<File | null>(null);
   const [parsedData, setParsedData] = useState<ParsedUserData[]>([]);
   const [isProcessing, setBulkProcessing] = useState(false);
@@ -194,6 +195,11 @@ export default function UserManagement() {
     }
   };
 
+  const handleResetPassword = (user: User) => {
+    setSelectedUser(user);
+    setIsResetPasswordDialogOpen(true);
+  };
+
   // Delete user mutation
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: string) => {
@@ -243,6 +249,29 @@ export default function UserManagement() {
       toast({
         title: "Failed to update user",
         description: error.message || "An error occurred while updating the user.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Reset password mutation
+  const resetPasswordMutation = useMutation({
+    mutationFn: async ({ userId, newPassword }: { userId: string; newPassword: string }) => {
+      const response = await apiRequest('PUT', `/api/users/${userId}/reset-password`, { password: newPassword });
+      return response.json();
+    },
+    onSuccess: () => {
+      setIsResetPasswordDialogOpen(false);
+      setSelectedUser(null);
+      toast({
+        title: "Password reset successfully",
+        description: "The user's password has been updated.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to reset password",
+        description: error.message || "An error occurred while resetting the password.",
         variant: "destructive",
       });
     },
@@ -839,6 +868,84 @@ EMP002,jane.smith,password123,Jane Smith,jane.smith@company.com,+1234567891,HR,H
         </DialogContent>
       </Dialog>
 
+      {/* Reset Password Dialog */}
+      <Dialog open={isResetPasswordDialogOpen} onOpenChange={setIsResetPasswordDialogOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Reset Password</DialogTitle>
+            <DialogDescription>
+              Reset password for {selectedUser?.name} ({selectedUser?.employeeId})
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            const formData = new FormData(e.currentTarget);
+            const newPassword = formData.get('newPassword') as string;
+            const confirmPassword = formData.get('confirmPassword') as string;
+            
+            if (newPassword !== confirmPassword) {
+              toast({
+                title: "Password mismatch",
+                description: "Passwords do not match.",
+                variant: "destructive",
+              });
+              return;
+            }
+            
+            if (newPassword.length < 6) {
+              toast({
+                title: "Password too short",
+                description: "Password must be at least 6 characters long.",
+                variant: "destructive",
+              });
+              return;
+            }
+            
+            if (selectedUser) {
+              resetPasswordMutation.mutate({ userId: selectedUser.id, newPassword });
+            }
+          }} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="newPassword">New Password</Label>
+              <Input 
+                id="newPassword" 
+                name="newPassword" 
+                type="password" 
+                placeholder="Enter new password"
+                required
+                minLength={6}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <Input 
+                id="confirmPassword" 
+                name="confirmPassword" 
+                type="password" 
+                placeholder="Confirm new password"
+                required
+                minLength={6}
+              />
+            </div>
+            <div className="flex justify-end space-x-2 pt-4">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => setIsResetPasswordDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button 
+                type="submit" 
+                disabled={resetPasswordMutation.isPending}
+              >
+                {resetPasswordMutation.isPending ? "Resetting..." : "Reset Password"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       <Tabs defaultValue="users" className="space-y-4">
         <TabsList>
           <TabsTrigger value="users" data-testid="tab-users">
@@ -902,40 +1009,64 @@ EMP002,jane.smith,password123,Jane Smith,jane.smith@company.com,+1234567891,HR,H
                             {formatDate(user.createdAt)}
                           </TableCell>
                           <TableCell className="text-right">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" className="h-8 w-8 p-0" data-testid={`user-actions-${user.employeeId}`}>
-                                  <span className="sr-only">Open menu</span>
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                <DropdownMenuItem
-                                  onClick={() => handleViewUser(user)}
-                                  data-testid={`view-user-${user.employeeId}`}
-                                >
-                                  <Eye className="mr-2 h-4 w-4" />
-                                  View Details
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => handleEditUser(user)}
-                                  data-testid={`edit-user-${user.employeeId}`}
-                                >
-                                  <Edit className="mr-2 h-4 w-4" />
-                                  Edit User
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                  onClick={() => handleDeleteUser(user)}
-                                  className="text-destructive focus:text-destructive"
-                                  data-testid={`delete-user-${user.employeeId}`}
-                                >
-                                  <Trash2 className="mr-2 h-4 w-4" />
-                                  Delete User
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                            <div className="flex items-center justify-end gap-1">
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-8 w-8 p-0"
+                                      onClick={() => handleEditUser(user)}
+                                      data-testid={`edit-user-${user.employeeId}`}
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Edit User</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                                      onClick={() => handleDeleteUser(user)}
+                                      data-testid={`delete-user-${user.employeeId}`}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Delete User</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-8 w-8 p-0"
+                                      onClick={() => handleResetPassword(user)}
+                                      data-testid={`reset-password-${user.employeeId}`}
+                                    >
+                                      <Lock className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Reset Password</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}

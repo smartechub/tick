@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -37,19 +37,22 @@ export default function Tickets() {
   const [selectedTickets, setSelectedTickets] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
-  const queryParams = new URLSearchParams();
-  if (searchQuery) queryParams.append('search', searchQuery);
-  if (statusFilter && statusFilter !== 'all') queryParams.append('status', statusFilter);
-  if (priorityFilter && priorityFilter !== 'all') queryParams.append('priority', priorityFilter);
-  if (departmentFilter && departmentFilter !== 'all') queryParams.append('department', departmentFilter);
-  queryParams.append('page', currentPage.toString());
-  queryParams.append('limit', '20');
+  const queryParams = useMemo(() => {
+    const params = new URLSearchParams();
+    if (searchQuery) params.append('search', searchQuery);
+    if (statusFilter && statusFilter !== 'all') params.append('status', statusFilter);
+    if (priorityFilter && priorityFilter !== 'all') params.append('priority', priorityFilter);
+    if (departmentFilter && departmentFilter !== 'all') params.append('department', departmentFilter);
+    params.append('page', currentPage.toString());
+    params.append('limit', '20');
+    return Object.fromEntries(params);
+  }, [searchQuery, statusFilter, priorityFilter, departmentFilter, currentPage]);
 
   const { data: ticketsData, isLoading } = useQuery<{
     tickets: Ticket[];
     total: number;
   }>({
-    queryKey: ['/api/tickets', Object.fromEntries(queryParams)],
+    queryKey: ['/api/tickets', queryParams],
   });
 
   const tickets = ticketsData?.tickets || [];

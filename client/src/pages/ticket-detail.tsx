@@ -162,7 +162,7 @@ export default function TicketDetail() {
     );
   }
 
-  if (!ticketData) {
+  if (!ticketData || !ticketData.ticket) {
     return (
       <div className="text-center py-12">
         <p className="text-muted-foreground">Ticket not found</p>
@@ -173,7 +173,7 @@ export default function TicketDetail() {
     );
   }
 
-  const { ticket, comments, attachments } = ticketData;
+  const { ticket, comments = [], attachments = [] } = ticketData;
 
   return (
     <div className="space-y-6" data-testid="ticket-detail-view">

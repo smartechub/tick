@@ -10,13 +10,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Plus, Users, UserPlus, Upload, FileText, X, Download, AlertCircle, CheckCircle2, Edit, Trash2, Eye, MoreHorizontal, Lock } from "lucide-react";
+import { Plus, Users, UserPlus, Upload, FileText, X, Download, AlertCircle, CheckCircle2, Edit, Trash2, Eye, MoreHorizontal, Lock, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import Papa from "papaparse";
@@ -71,6 +72,8 @@ export default function UserManagement() {
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isResetPasswordDialogOpen, setIsResetPasswordDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [bulkImportFile, setBulkImportFile] = useState<File | null>(null);
   const [parsedData, setParsedData] = useState<ParsedUserData[]>([]);
   const [isProcessing, setBulkProcessing] = useState(false);
@@ -186,12 +189,15 @@ export default function UserManagement() {
   };
 
   const handleDeleteUser = (user: User) => {
-    const confirmed = window.confirm(
-      `Are you sure you want to delete user "${user.name}" (${user.employeeId})? This action cannot be undone.`
-    );
-    
-    if (confirmed) {
-      deleteUserMutation.mutate(user.id);
+    setUserToDelete(user);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmDeleteUser = () => {
+    if (userToDelete) {
+      deleteUserMutation.mutate(userToDelete.id);
+      setIsDeleteDialogOpen(false);
+      setUserToDelete(null);
     }
   };
 
@@ -945,6 +951,76 @@ EMP002,jane.smith,password123,Jane Smith,jane.smith@company.com,+1234567891,HR,H
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-destructive/10">
+                <AlertTriangle className="h-5 w-5 text-destructive" />
+              </div>
+              <div>
+                <AlertDialogTitle>Delete User</AlertDialogTitle>
+                <AlertDialogDescription className="mt-1">
+                  This action cannot be undone and will permanently remove the user from the system.
+                </AlertDialogDescription>
+              </div>
+            </div>
+          </AlertDialogHeader>
+          
+          {userToDelete && (
+            <div className="my-4 rounded-lg border border-border bg-muted/50 p-4">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-muted-foreground">User Details</span>
+                </div>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="font-medium">Name:</span> {userToDelete.name}
+                  </div>
+                  <div>
+                    <span className="font-medium">Employee ID:</span> {userToDelete.employeeId}
+                  </div>
+                  <div>
+                    <span className="font-medium">Email:</span> {userToDelete.email}
+                  </div>
+                  <div>
+                    <span className="font-medium">Department:</span> {userToDelete.department}
+                  </div>
+                  <div>
+                    <span className="font-medium">Role:</span>
+                    <Badge variant={getRoleBadgeVariant(userToDelete.role)} className="ml-2">
+                      {userToDelete.role}
+                    </Badge>
+                  </div>
+                  <div>
+                    <span className="font-medium">Designation:</span> {userToDelete.designation}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <AlertDialogFooter>
+            <AlertDialogCancel 
+              onClick={() => {
+                setIsDeleteDialogOpen(false);
+                setUserToDelete(null);
+              }}
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteUser}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteUserMutation.isPending}
+            >
+              {deleteUserMutation.isPending ? "Deleting..." : "Delete User"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Tabs defaultValue="users" className="space-y-4">
         <TabsList>

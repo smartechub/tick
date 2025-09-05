@@ -381,33 +381,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Delete user
-  app.delete('/api/users/:id', requireAuth, requireRole(['admin']), async (req: any, res) => {
-    try {
-      const userId = req.params.id;
-      
-      // Prevent deleting own account
-      if (userId === req.user.id) {
-        return res.status(400).json({ message: 'Cannot delete your own account' });
-      }
-
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: 'User not found' });
-      }
-
-      const success = await storage.deleteUser(userId);
-      if (!success) {
-        return res.status(404).json({ message: 'User not found' });
-      }
-
-      res.json({ message: 'User deleted successfully' });
-    } catch (error) {
-      res.status(500).json({ message: 'Failed to delete user' });
-    }
-  });
-
-  // Bulk delete users
+  // Bulk delete users (must come before single user delete to avoid route conflict)
   app.delete('/api/users/bulk', requireAuth, requireRole(['admin']), async (req: any, res) => {
     try {
       const { employeeIds } = req.body;
@@ -452,6 +426,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       res.status(500).json({ message: 'Failed to delete users' });
+    }
+  });
+
+  // Delete user
+  app.delete('/api/users/:id', requireAuth, requireRole(['admin']), async (req: any, res) => {
+    try {
+      const userId = req.params.id;
+      
+      // Prevent deleting own account
+      if (userId === req.user.id) {
+        return res.status(400).json({ message: 'Cannot delete your own account' });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      const success = await storage.deleteUser(userId);
+      if (!success) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      res.json({ message: 'User deleted successfully' });
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to delete user' });
     }
   });
 

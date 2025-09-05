@@ -69,7 +69,7 @@ export default function TicketDetail() {
     comments: Comment[];
     attachments: Attachment[];
   }>({
-    queryKey: ['/api/tickets', id],
+    queryKey: [`/api/tickets/${id}`],
     enabled: !!id,
   });
 
@@ -83,7 +83,7 @@ export default function TicketDetail() {
         title: "Ticket Updated",
         description: "The ticket has been updated successfully.",
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/tickets', id] });
+      queryClient.invalidateQueries({ queryKey: [`/api/tickets/${id}`] });
       queryClient.invalidateQueries({ queryKey: ['/api/tickets'] });
       queryClient.invalidateQueries({ queryKey: ['/api/tickets/stats'] });
     },
@@ -110,7 +110,7 @@ export default function TicketDetail() {
         title: "Comment Added",
         description: "Your comment has been added to the ticket.",
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/tickets', id] });
+      queryClient.invalidateQueries({ queryKey: [`/api/tickets/${id}`] });
     },
     onError: (error: Error) => {
       toast({

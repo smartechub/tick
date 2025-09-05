@@ -65,15 +65,19 @@ export class EmailService {
     return nodemailer.createTransport(transportConfig);
   }
 
-  async sendTestEmail(testEmail: string): Promise<boolean> {
+  async sendTestEmail(testEmail: string, testSettings?: any): Promise<boolean> {
     try {
-      const settings = await this.getEmailSettings();
+      let settings = testSettings;
+      
       if (!settings) {
-        throw new Error('Email notifications are disabled or not configured');
+        settings = await this.getEmailSettings();
+        if (!settings) {
+          throw new Error('Email notifications are disabled or not configured');
+        }
       }
 
       if (!settings.host || !settings.username || !settings.password) {
-        throw new Error('SMTP configuration is incomplete');
+        throw new Error('SMTP configuration is incomplete. Please fill in Host, Username, and Password fields.');
       }
 
       const transporter = await this.createTransporter(settings);

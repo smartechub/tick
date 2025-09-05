@@ -458,7 +458,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/settings/test-email', requireAuth, requireRole(['admin']), async (req: any, res) => {
     try {
-      const { email } = req.body;
+      const { email, settings } = req.body;
       if (!email) {
         return res.status(400).json({ message: 'Email address is required' });
       }
@@ -467,7 +467,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const emailSchema = z.string().email();
       const validatedEmail = emailSchema.parse(email);
 
-      await emailService.sendTestEmail(validatedEmail);
+      // Use provided settings if available, otherwise use stored settings
+      let testSettings = null;
+      if (settings) {
+        testSettings = {
+          enabled: true,
+          host: settings.smtpHost,
+          port: parseInt(settings.smtpPort || '587'),
+          username: settings.smtpUsername,
+          password: settings.smtpPassword,
+          senderName: settings.senderName || 'IT Support Team',
+          senderEmail: settings.senderEmail,
+          itTeamEmail: settings.itTeamEmail
+        };
+      }
+
+      await emailService.sendTestEmail(validatedEmail, testSettings);
       res.json({ message: 'Test email sent successfully' });
     } catch (error) {
       console.error('Test email error:', error);

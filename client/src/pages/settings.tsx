@@ -142,7 +142,10 @@ IT Support Team`,
       const response = await fetch('/api/settings/test-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: testEmail })
+        body: JSON.stringify({ 
+          email: testEmail,
+          settings: formData
+        })
       });
 
       if (!response.ok) {

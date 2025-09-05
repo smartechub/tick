@@ -83,14 +83,21 @@ export default function AuditLogs() {
 
   const getActionBadgeColor = (action: string) => {
     switch (action) {
-      case 'login':
+      case 'login_success':
       case 'logout':
         return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300';
-      case 'api_call':
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+      case 'login_failed':
+      case 'password_change_failed':
+      case 'password_reset_failed':
+      case 'forgot_password_failed':
+        return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
+      case 'password_change_success':
+      case 'password_reset_success':
+      case 'forgot_password_success':
+        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
       case 'click':
       case 'page_view':
-        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
       case 'form_submit':
         return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300';
       case 'file_upload':
@@ -170,9 +177,15 @@ export default function AuditLogs() {
                   <SelectValue placeholder="All actions" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="login">Login</SelectItem>
+                  <SelectItem value="login_success">Login Success</SelectItem>
+                  <SelectItem value="login_failed">Login Failed</SelectItem>
                   <SelectItem value="logout">Logout</SelectItem>
-                  <SelectItem value="api_call">API Call</SelectItem>
+                  <SelectItem value="password_change_success">Password Change</SelectItem>
+                  <SelectItem value="password_change_failed">Password Change Failed</SelectItem>
+                  <SelectItem value="password_reset_success">Password Reset</SelectItem>
+                  <SelectItem value="password_reset_failed">Password Reset Failed</SelectItem>
+                  <SelectItem value="forgot_password_success">Forgot Password</SelectItem>
+                  <SelectItem value="forgot_password_failed">Forgot Password Failed</SelectItem>
                   <SelectItem value="page_view">Page View</SelectItem>
                   <SelectItem value="click">Click</SelectItem>
                   <SelectItem value="form_submit">Form Submit</SelectItem>

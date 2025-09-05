@@ -158,27 +158,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }
 
   // Authentication routes
-  app.post('/api/auth/login', passport.authenticate('local'), async (req: any, res) => {
-    // Log successful login activity
-    await ActivityLogger.logLogin(
-      req.user.id,
-      req.sessionID,
-      req.get('User-Agent'),
-      req.ip || req.connection.remoteAddress || 'unknown'
-    );
+  app.post('/api/auth/login', async (req: any, res, next) => {
+    const { username, password } = req.body;
+    const userAgent = req.get('User-Agent');
+    const ipAddress = req.ip || req.connection.remoteAddress || 'unknown';
+    const sessionId = req.sessionID;
 
-    res.json({ 
-      user: {
-        id: req.user.id,
-        employeeId: req.user.employeeId,
-        name: req.user.name,
-        email: req.user.email,
-        mobile: req.user.mobile,
-        department: req.user.department,
-        designation: req.user.designation,
-        role: req.user.role
+    // First check if user exists for logging purposes
+    let attemptedUser: any = null;
+    try {
+      attemptedUser = await storage.getUserByEmailOrEmployeeId(username);
+    } catch (error) {
+      // Continue with authentication
+    }
+
+    passport.authenticate('local', async (err: any, user: any, info: any) => {
+      if (err) {
+        return next(err);
       }
-    });
+
+      if (!user) {
+        // Log failed login attempt
+        await storage.createActivityLog({
+          userId: attemptedUser?.id || null,
+          sessionId,
+          action: 'login_failed',
+          resource: 'authentication',
+          userAgent,
+          ipAddress,
+          details: JSON.stringify({
+            username: username,
+            reason: info?.message || 'Invalid credentials',
+            timestamp: new Date().toISOString()
+          }),
+          success: false,
+          errorMessage: info?.message || 'Authentication failed'
+        });
+
+        return res.status(401).json({ message: info?.message || 'Authentication failed' });
+      }
+
+      req.logIn(user, async (err: any) => {
+        if (err) {
+          return next(err);
+        }
+
+        // Log successful login activity
+        await storage.createActivityLog({
+          userId: user.id,
+          sessionId,
+          action: 'login_success',
+          resource: 'authentication',
+          userAgent,
+          ipAddress,
+          details: JSON.stringify({
+            username: username,
+            timestamp: new Date().toISOString()
+          }),
+          success: true
+        });
+
+        res.json({ 
+          user: {
+            id: user.id,
+            employeeId: user.employeeId,
+            name: user.name,
+            email: user.email,
+            mobile: user.mobile,
+            department: user.department,
+            designation: user.designation,
+            role: user.role
+          }
+        });
+      });
+    })(req, res, next);
   });
 
   app.post('/api/auth/logout', async (req: any, res) => {
@@ -194,7 +247,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Log successful logout activity
       if (userId) {
-        await ActivityLogger.logLogout(userId, sessionId, userAgent, ipAddress);
+        await storage.createActivityLog({
+          userId,
+          sessionId,
+          action: 'logout',
+          resource: 'authentication',
+          userAgent,
+          ipAddress,
+          details: JSON.stringify({
+            timestamp: new Date().toISOString()
+          }),
+          success: true
+        });
       }
       
       res.json({ message: 'Logged out successfully' });
@@ -260,6 +324,228 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Invalid user data', errors: error.errors });
       }
       res.status(500).json({ message: 'Failed to create user' });
+    }
+  });
+
+  // Password change endpoint
+  app.put('/api/auth/change-password', requireAuth, async (req: any, res) => {
+    try {
+      const { currentPassword, newPassword } = req.body;
+      const userId = req.user.id;
+      const userAgent = req.get('User-Agent');
+      const ipAddress = req.ip || req.connection.remoteAddress || 'unknown';
+      const sessionId = req.sessionID;
+
+      if (!currentPassword || !newPassword) {
+        await storage.createActivityLog({
+          userId,
+          sessionId,
+          action: 'password_change_failed',
+          resource: 'authentication',
+          userAgent,
+          ipAddress,
+          details: JSON.stringify({
+            reason: 'Missing current or new password',
+            timestamp: new Date().toISOString()
+          }),
+          success: false,
+          errorMessage: 'Current password and new password are required'
+        });
+
+        return res.status(400).json({ message: 'Current password and new password are required' });
+      }
+
+      if (newPassword.length < 6) {
+        await storage.createActivityLog({
+          userId,
+          sessionId,
+          action: 'password_change_failed',
+          resource: 'authentication',
+          userAgent,
+          ipAddress,
+          details: JSON.stringify({
+            reason: 'New password too short',
+            timestamp: new Date().toISOString()
+          }),
+          success: false,
+          errorMessage: 'New password must be at least 6 characters long'
+        });
+
+        return res.status(400).json({ message: 'New password must be at least 6 characters long' });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      // Verify current password
+      const isValidCurrentPassword = await bcrypt.compare(currentPassword, user.password);
+      if (!isValidCurrentPassword) {
+        await storage.createActivityLog({
+          userId,
+          sessionId,
+          action: 'password_change_failed',
+          resource: 'authentication',
+          userAgent,
+          ipAddress,
+          details: JSON.stringify({
+            reason: 'Incorrect current password',
+            timestamp: new Date().toISOString()
+          }),
+          success: false,
+          errorMessage: 'Current password is incorrect'
+        });
+
+        return res.status(400).json({ message: 'Current password is incorrect' });
+      }
+
+      // Update password
+      const updatedUser = await storage.updateUser(userId, { password: newPassword });
+      if (!updatedUser) {
+        await storage.createActivityLog({
+          userId,
+          sessionId,
+          action: 'password_change_failed',
+          resource: 'authentication',
+          userAgent,
+          ipAddress,
+          details: JSON.stringify({
+            reason: 'Failed to update password in database',
+            timestamp: new Date().toISOString()
+          }),
+          success: false,
+          errorMessage: 'Failed to update password'
+        });
+
+        return res.status(500).json({ message: 'Failed to update password' });
+      }
+
+      // Log successful password change
+      await storage.createActivityLog({
+        userId,
+        sessionId,
+        action: 'password_change_success',
+        resource: 'authentication',
+        userAgent,
+        ipAddress,
+        details: JSON.stringify({
+          timestamp: new Date().toISOString()
+        }),
+        success: true
+      });
+
+      res.json({ message: 'Password changed successfully' });
+    } catch (error) {
+      await storage.createActivityLog({
+        userId: req.user.id,
+        sessionId: req.sessionID,
+        action: 'password_change_error',
+        resource: 'authentication',
+        userAgent: req.get('User-Agent'),
+        ipAddress: req.ip || req.connection.remoteAddress || 'unknown',
+        details: JSON.stringify({
+          error: error instanceof Error ? error.message : 'Unknown error',
+          timestamp: new Date().toISOString()
+        }),
+        success: false,
+        errorMessage: 'System error during password change'
+      });
+
+      res.status(500).json({ message: 'Failed to change password' });
+    }
+  });
+
+  // Forgot password endpoint
+  app.post('/api/auth/forgot-password', async (req: any, res) => {
+    try {
+      const { email } = req.body;
+      const userAgent = req.get('User-Agent');
+      const ipAddress = req.ip || req.connection.remoteAddress || 'unknown';
+      const sessionId = req.sessionID;
+
+      if (!email) {
+        await storage.createActivityLog({
+          userId: null,
+          sessionId,
+          action: 'forgot_password_failed',
+          resource: 'authentication',
+          userAgent,
+          ipAddress,
+          details: JSON.stringify({
+            reason: 'Email address required',
+            timestamp: new Date().toISOString()
+          }),
+          success: false,
+          errorMessage: 'Email address is required'
+        });
+
+        return res.status(400).json({ message: 'Email address is required' });
+      }
+
+      const user = await storage.getUserByEmailOrEmployeeId(email);
+      
+      if (!user) {
+        // Log failed attempt but don't reveal if user exists
+        await storage.createActivityLog({
+          userId: null,
+          sessionId,
+          action: 'forgot_password_failed',
+          resource: 'authentication',
+          userAgent,
+          ipAddress,
+          details: JSON.stringify({
+            email,
+            reason: 'User not found',
+            timestamp: new Date().toISOString()
+          }),
+          success: false,
+          errorMessage: 'User not found'
+        });
+
+        // Still return success to prevent user enumeration
+        return res.json({ message: 'If the email exists, a password reset link has been sent' });
+      }
+
+      // Generate reset token (in real implementation, you'd store this and send email)
+      const resetToken = randomUUID();
+      
+      // Log successful forgot password request
+      await storage.createActivityLog({
+        userId: user.id,
+        sessionId,
+        action: 'forgot_password_success',
+        resource: 'authentication',
+        userAgent,
+        ipAddress,
+        details: JSON.stringify({
+          email,
+          resetToken: resetToken.substring(0, 8) + '...', // Log partial token for audit
+          timestamp: new Date().toISOString()
+        }),
+        success: true
+      });
+
+      // TODO: Send email with reset link
+      // For now, just return success message
+      res.json({ message: 'If the email exists, a password reset link has been sent' });
+    } catch (error) {
+      await storage.createActivityLog({
+        userId: null,
+        sessionId: req.sessionID,
+        action: 'forgot_password_error',
+        resource: 'authentication',
+        userAgent: req.get('User-Agent'),
+        ipAddress: req.ip || req.connection.remoteAddress || 'unknown',
+        details: JSON.stringify({
+          error: error instanceof Error ? error.message : 'Unknown error',
+          timestamp: new Date().toISOString()
+        }),
+        success: false,
+        errorMessage: 'System error during forgot password'
+      });
+
+      res.status(500).json({ message: 'Failed to process forgot password request' });
     }
   });
 
@@ -423,28 +709,124 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Reset user password
-  app.put('/api/users/:id/reset-password', requireAuth, requireRole(['admin']), async (req, res) => {
+  app.put('/api/users/:id/reset-password', requireAuth, requireRole(['admin']), async (req: any, res) => {
     try {
       const { password } = req.body;
+      const targetUserId = req.params.id;
+      const adminUserId = req.user.id;
+      const userAgent = req.get('User-Agent');
+      const ipAddress = req.ip || req.connection.remoteAddress || 'unknown';
+      const sessionId = req.sessionID;
       
       if (!password || password.length < 6) {
+        // Log failed password reset attempt
+        await storage.createActivityLog({
+          userId: adminUserId,
+          sessionId,
+          action: 'password_reset_failed',
+          resource: 'user_management',
+          resourceId: targetUserId,
+          userAgent,
+          ipAddress,
+          details: JSON.stringify({
+            targetUserId,
+            reason: 'Invalid password length',
+            timestamp: new Date().toISOString()
+          }),
+          success: false,
+          errorMessage: 'Password must be at least 6 characters long'
+        });
+
         return res.status(400).json({ message: 'Password must be at least 6 characters long' });
       }
 
-      const user = await storage.getUser(req.params.id);
+      const user = await storage.getUser(targetUserId);
       if (!user) {
+        // Log failed password reset attempt
+        await storage.createActivityLog({
+          userId: adminUserId,
+          sessionId,
+          action: 'password_reset_failed',
+          resource: 'user_management',
+          resourceId: targetUserId,
+          userAgent,
+          ipAddress,
+          details: JSON.stringify({
+            targetUserId,
+            reason: 'User not found',
+            timestamp: new Date().toISOString()
+          }),
+          success: false,
+          errorMessage: 'User not found'
+        });
+
         return res.status(404).json({ message: 'User not found' });
       }
 
       // Update user with new password
-      const updatedUser = await storage.updateUser(req.params.id, { password });
+      const updatedUser = await storage.updateUser(targetUserId, { password });
       
       if (!updatedUser) {
+        // Log failed password reset attempt
+        await storage.createActivityLog({
+          userId: adminUserId,
+          sessionId,
+          action: 'password_reset_failed',
+          resource: 'user_management',
+          resourceId: targetUserId,
+          userAgent,
+          ipAddress,
+          details: JSON.stringify({
+            targetUserId,
+            targetUserName: user.name,
+            reason: 'Update operation failed',
+            timestamp: new Date().toISOString()
+          }),
+          success: false,
+          errorMessage: 'Failed to update user password'
+        });
+
         return res.status(404).json({ message: 'User not found' });
       }
 
+      // Log successful password reset
+      await storage.createActivityLog({
+        userId: adminUserId,
+        sessionId,
+        action: 'password_reset_success',
+        resource: 'user_management',
+        resourceId: targetUserId,
+        userAgent,
+        ipAddress,
+        details: JSON.stringify({
+          targetUserId,
+          targetUserName: user.name,
+          targetEmployeeId: user.employeeId,
+          adminName: req.user.name,
+          timestamp: new Date().toISOString()
+        }),
+        success: true
+      });
+
       res.json({ message: 'Password reset successfully' });
     } catch (error) {
+      // Log error
+      await storage.createActivityLog({
+        userId: req.user.id,
+        sessionId: req.sessionID,
+        action: 'password_reset_error',
+        resource: 'user_management',
+        resourceId: req.params.id,
+        userAgent: req.get('User-Agent'),
+        ipAddress: req.ip || req.connection.remoteAddress || 'unknown',
+        details: JSON.stringify({
+          error: error instanceof Error ? error.message : 'Unknown error',
+          timestamp: new Date().toISOString()
+        }),
+        success: false,
+        errorMessage: 'System error during password reset'
+      });
+
       res.status(500).json({ message: 'Failed to reset password' });
     }
   });

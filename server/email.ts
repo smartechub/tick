@@ -206,6 +206,112 @@ ${settings.senderName}`,
     });
   }
 
+  async sendCommentAddedEmail(ticket: any, comment: any, commenterName: string): Promise<void> {
+    try {
+      console.log(`📧 Starting comment notification email for ticket ${ticket.ticketNumber}`);
+      
+      const settings = await this.getEmailSettings();
+      if (!settings) {
+        console.log('⚠️ Email settings not found or disabled, skipping comment notification');
+        return;
+      }
+
+      const settingsMap = await this.getTemplateSettings();
+      const subject = this.interpolateTemplate(
+        settingsMap.comment_added_subject || 'New Comment Added to Ticket #{ticketNumber}',
+        { ...ticket, commenterName }
+      );
+      const body = this.interpolateTemplate(
+        settingsMap.comment_added_body || this.getDefaultCommentAddedBody(),
+        { ...ticket, ...comment, commenterName }
+      );
+
+      const transporter = await this.createTransporter(settings);
+
+      // Send to ticket creator (employee)
+      console.log(`📤 Sending comment notification to ticket creator: ${ticket.employeeEmail}`);
+      await transporter.sendMail({
+        from: `"${settings.senderName}" <${settings.senderEmail || settings.username}>`,
+        to: ticket.employeeEmail,
+        subject,
+        text: body,
+        html: this.convertToHtml(body)
+      });
+      console.log('✅ Comment notification sent to employee');
+
+      // Send to IT team if configured
+      if (settings.itTeamEmail) {
+        console.log(`📤 Sending comment notification to IT team: ${settings.itTeamEmail}`);
+        await transporter.sendMail({
+          from: `"${settings.senderName}" <${settings.senderEmail || settings.username}>`,
+          to: settings.itTeamEmail,
+          subject: `[IT NOTIFICATION] ${subject}`,
+          text: `IT Team Notification:\n\n${body}`,
+          html: this.convertToHtml(`<strong>IT Team Notification:</strong><br><br>${body}`)
+        });
+        console.log('✅ Comment notification sent to IT team');
+      }
+
+      console.log(`🎉 Comment notification emails sent for ticket ${ticket.ticketNumber}`);
+    } catch (error) {
+      console.error('❌ Failed to send comment notification email:', error);
+      console.error('❌ Error details:', error instanceof Error ? error.message : error);
+    }
+  }
+
+  async sendStatusUpdateEmail(ticket: any, oldStatus: string, newStatus: string, updaterName: string): Promise<void> {
+    try {
+      console.log(`📧 Starting status update email for ticket ${ticket.ticketNumber}: ${oldStatus} → ${newStatus}`);
+      
+      const settings = await this.getEmailSettings();
+      if (!settings) {
+        console.log('⚠️ Email settings not found or disabled, skipping status update notification');
+        return;
+      }
+
+      const settingsMap = await this.getTemplateSettings();
+      const subject = this.interpolateTemplate(
+        settingsMap.status_update_subject || 'Ticket Status Updated - #{ticketNumber}',
+        { ...ticket, oldStatus, newStatus, updaterName }
+      );
+      const body = this.interpolateTemplate(
+        settingsMap.status_update_body || this.getDefaultStatusUpdateBody(),
+        { ...ticket, oldStatus, newStatus, updaterName }
+      );
+
+      const transporter = await this.createTransporter(settings);
+
+      // Send to ticket creator (employee)
+      console.log(`📤 Sending status update notification to ticket creator: ${ticket.employeeEmail}`);
+      await transporter.sendMail({
+        from: `"${settings.senderName}" <${settings.senderEmail || settings.username}>`,
+        to: ticket.employeeEmail,
+        subject,
+        text: body,
+        html: this.convertToHtml(body)
+      });
+      console.log('✅ Status update notification sent to employee');
+
+      // Send to IT team if configured
+      if (settings.itTeamEmail) {
+        console.log(`📤 Sending status update notification to IT team: ${settings.itTeamEmail}`);
+        await transporter.sendMail({
+          from: `"${settings.senderName}" <${settings.senderEmail || settings.username}>`,
+          to: settings.itTeamEmail,
+          subject: `[IT NOTIFICATION] ${subject}`,
+          text: `IT Team Notification:\n\n${body}`,
+          html: this.convertToHtml(`<strong>IT Team Notification:</strong><br><br>${body}`)
+        });
+        console.log('✅ Status update notification sent to IT team');
+      }
+
+      console.log(`🎉 Status update notification emails sent for ticket ${ticket.ticketNumber}`);
+    } catch (error) {
+      console.error('❌ Failed to send status update notification email:', error);
+      console.error('❌ Error details:', error instanceof Error ? error.message : error);
+    }
+  }
+
   private getDefaultTicketCreatedBody(): string {
     return `Dear {employeeName},
 
@@ -218,6 +324,43 @@ Ticket Details:
 - Status: {status}
 
 We will review your ticket and respond as soon as possible.
+
+Best regards,
+IT Support Team`;
+  }
+
+  private getDefaultCommentAddedBody(): string {
+    return `Dear {employeeName},
+
+A new comment has been added to your support ticket.
+
+Ticket Details:
+- Ticket Number: {ticketNumber}
+- Title: {title}
+- Status: {status}
+
+Comment by {commenterName}:
+{content}
+
+You can view the full ticket details by logging into the support portal.
+
+Best regards,
+IT Support Team`;
+  }
+
+  private getDefaultStatusUpdateBody(): string {
+    return `Dear {employeeName},
+
+The status of your support ticket has been updated.
+
+Ticket Details:
+- Ticket Number: {ticketNumber}
+- Title: {title}
+- Previous Status: {oldStatus}
+- New Status: {newStatus}
+- Updated by: {updaterName}
+
+You can view the full ticket details by logging into the support portal.
 
 Best regards,
 IT Support Team`;

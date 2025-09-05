@@ -361,6 +361,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           oldValue: oldStatus,
           newValue: req.body.status
         });
+
+        // Send status update email notification
+        console.log(`Sending status update email for ticket ${updatedTicket.ticketNumber}: ${oldStatus} → ${req.body.status}`);
+        emailService.sendStatusUpdateEmail(
+          updatedTicket, 
+          oldStatus, 
+          req.body.status, 
+          req.user.username || req.user.email
+        ).catch(error => {
+          console.error('❌ Failed to send status update email:', error);
+        });
       }
 
       res.json(updatedTicket);
@@ -520,6 +531,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: req.user.id,
         action: 'comment_added',
         newValue: req.body.content
+      });
+
+      // Send comment notification email
+      console.log(`Sending comment notification email for ticket ${ticket.ticketNumber}`);
+      emailService.sendCommentAddedEmail(
+        ticket, 
+        comment, 
+        req.user.username || req.user.email
+      ).catch(error => {
+        console.error('❌ Failed to send comment notification email:', error);
       });
 
       res.status(201).json(comment);

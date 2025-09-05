@@ -1,14 +1,58 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Bell, Search, Menu } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Bell, Search, Menu, Clock, AlertCircle } from "lucide-react";
 import type { AuthUser } from "@/lib/auth";
 import { getInitials } from "@/lib/utils";
 import { useLocation } from "wouter";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { formatDistanceToNow } from "date-fns";
 
 interface HeaderProps {
   user: AuthUser;
 }
+
+const NotificationsList = () => {
+  const { data: recentTickets } = useQuery({
+    queryKey: ['/api/tickets', { limit: 5 }],
+    queryFn: () => fetch('/api/tickets?limit=5&sort=createdAt&order=desc').then(res => res.json())
+  });
+
+  const tickets = recentTickets?.tickets || [];
+
+  if (tickets.length === 0) {
+    return (
+      <div className="p-4 text-center text-sm text-muted-foreground">
+        No recent notifications
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-h-60 overflow-y-auto">
+      {tickets.map((ticket: any) => (
+        <DropdownMenuItem key={ticket.id} className="flex items-start gap-3 p-3">
+          <div className="flex-shrink-0 mt-1">
+            {ticket.priority === 'critical' ? (
+              <AlertCircle className="h-4 w-4 text-red-500" />
+            ) : (
+              <Clock className="h-4 w-4 text-blue-500" />
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium truncate">
+              New ticket: {ticket.title}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              #{ticket.ticketNumber} • {formatDistanceToNow(new Date(ticket.createdAt), { addSuffix: true })}
+            </p>
+          </div>
+        </DropdownMenuItem>
+      ))}
+    </div>
+  );
+};
 
 export function Header({ user }: HeaderProps) {
   const [location, setLocation] = useLocation();
@@ -70,10 +114,19 @@ export function Header({ user }: HeaderProps) {
           </form>
 
           {/* Notifications */}
-          <Button variant="ghost" size="sm" className="relative" data-testid="notifications-button">
-            <Bell className="h-5 w-5" />
-            <span className="absolute top-0 right-0 h-2 w-2 bg-destructive rounded-full"></span>
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="relative" data-testid="notifications-button">
+                <Bell className="h-5 w-5" />
+                <span className="absolute top-0 right-0 h-2 w-2 bg-destructive rounded-full"></span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-80">
+              <DropdownMenuLabel>Notifications</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <NotificationsList />
+            </DropdownMenuContent>
+          </DropdownMenu>
 
         </div>
       </div>
